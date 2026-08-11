@@ -1,11 +1,11 @@
 # Hospital Management System
 
-This workspace now includes a working FastAPI backend and a React dashboard shell for the HMS foundation.
+This workspace includes a working FastAPI backend and a React dashboard foundation for an HMS application.
 
 ## Run the backend
 
 ```bash
-python -m pip install -r requirement.txt
+python -m pip install -r requirements.txt
 uvicorn hms_backend.app.main:app --reload --port 8000
 ```
 
@@ -18,70 +18,36 @@ npm run dev
 ```
 
 The frontend expects the backend at http://127.0.0.1:8000.
-   ```
 
-6. **Run the application**
-   ```bash
-   python app.py
-   ```
+## Environment variables
 
-7. **Access the app**
+Create a `.env` file from the example:
 
-   Open your browser and navigate to: `http://localhost:5000`
+```bash
+cp .env.example .env
+```
 
----
+Example values:
 
-## Environment Variables
+```env
+APP_NAME=Hospital Management API
+DATABASE_URL=sqlite:///./hms.db
+SECRET_KEY=change-me
+```
 
-For this demo, only basic variables are needed:
+## API overview
 
-| Variable        | Description                       | Example                                      |
-| --------------- | --------------------------------- | -------------------------------------------- |
-| `SECRET_KEY`    | Flask secret key for sessions     | `demo-secret-key`                            |
-| `DATABASE_URL`  | Database connection string        | `mysql://root:password@localhost/hospital_db` |
-| `DEBUG`         | Enable/disable debug mode         | `True`                                       |
-
----
-
-## Sample API Endpoints (Planned)
-
-| Method | Endpoint                     | Description                   | Role      |
-| ------ | ---------------------------- | ----------------------------- | --------- |
-| POST   | `/api/auth/login`            | User login                    | All       |
-| GET    | `/api/patients`              | List all patients             | Staff     |
-| POST   | `/api/patients`              | Register a new patient        | Reception |
-| GET    | `/api/appointments`          | List appointments             | Staff     |
-| POST   | `/api/appointments`          | Book an appointment           | All       |
-| GET    | `/api/pharmacy/inventory`    | View medicine inventory       | Pharmacy  |
-| POST   | `/api/billing/invoice`       | Generate an invoice           | Billing   |
-| GET    | `/api/lab/reports/:id`       | Download a lab report         | Staff     |
-
----
+- `GET /` — health welcome endpoint
+- `GET /health` — database connectivity check
+- `POST /api/v1/auth/login` — admin/reception login demo endpoint
+- `GET /api/v1/patients/` — list patients
+- `GET /api/v1/appointments/` — list appointments
+- `GET /api/dashboard` — mock dashboard summary
 
 ## Status
 
-This project is currently in the **demo / prototype** stage. The modules listed above represent the planned scope. Implementation is in progress.
-
-| Module           | Status       |
-| ---------------- | ------------ |
-| Admin            | 🔲 Planned   |
-| Reception        | 🔲 Planned   |
-| Doctor           | 🔲 Planned   |
-| Nurse            | 🔲 Planned   |
-| Laboratory       | 🔲 Planned   |
-| Pharmacy         | 🔲 Planned   |
-| Inpatient (IP)   | 🔲 Planned   |
-| Billing          | 🔲 Planned   |
-| Patient Portal   | 🔲 Planned   |
-
----
+The project is currently at the foundation stage with the backend scaffolding, data models, and a dashboard shell in place. The next layer is module-by-module business logic for staff, billing, lab, pharmacy, and inpatient workflows.
 
 ## License
 
-This project is licensed under the **MIT License**.
-
----
-
-<p align="center">
-  🏥 Demo Project — Built for Review & Evaluation
-</p>
+MIT

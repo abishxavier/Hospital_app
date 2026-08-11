@@ -2,12 +2,17 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
+from hms_backend.app.api.v1.router import api_router
 from hms_backend.app.core.database import Base, engine
 from hms_backend.app.models.appointment import Appointment
 from hms_backend.app.models.patient import Patient
 from hms_backend.app.models.user import User
 
-app = FastAPI(title="Hospital Management API")
+app = FastAPI(
+    title="Hospital Management API",
+    description="Hospital Management System API for patient, appointments, and staff workflows.",
+    version="1.0.0",
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -16,6 +21,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(api_router, prefix="/api/v1")
 
 
 @app.get("/")
