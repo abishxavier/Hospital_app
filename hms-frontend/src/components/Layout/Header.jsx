@@ -19,6 +19,13 @@ export default function Header() {
             <p className="text-slate-500 text-xs">Cardiology</p>
           </div>
         </div>
+
+        <button 
+          onClick={() => alert("Logged out!")}
+          className="ml-4 px-3 py-1.5 text-sm font-medium text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors border border-rose-200"
+        >
+          Log Out
+        </button>
       </div>
     </header>
   );
