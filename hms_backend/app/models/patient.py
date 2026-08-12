@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date
+from sqlalchemy import Column, Integer, String, Date, Text
 from sqlalchemy.orm import relationship
 
 from hms_backend.app.core.database import Base
@@ -13,6 +13,10 @@ class Patient(Base):
     email = Column(String(120), nullable=True)
     date_of_birth = Column(Date, nullable=True)
     gender = Column(String(20), nullable=True)
+    blood_group = Column(String(10), nullable=True)
     address = Column(String(255), nullable=True)
+    emergency_contact_name = Column(String(120), nullable=True)
+    emergency_contact_phone = Column(String(20), nullable=True)
+    medical_history_summary = Column(Text, nullable=True)
 
     appointments = relationship("Appointment", back_populates="patient")
