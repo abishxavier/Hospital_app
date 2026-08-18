@@ -1,0 +1,9 @@
+{
+  "name": "hospital-app-project",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix hms-frontend run dev",
+    "build": "npm --prefix hms-frontend run build"
+  }
+}

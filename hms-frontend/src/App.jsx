@@ -1,111 +1,947 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Plus, Search, Filter, MoreHorizontal, Settings2, X } from 'lucide-react';
+import { Plus, Search, Filter, Trash2, Download, RefreshCw, ChevronLeft, ChevronRight, X, FileText, AlertCircle, Calendar, Clock } from 'lucide-react';
 import Layout from './components/Layout/Layout';
 import AdminDashboard from './pages/Admin/Dashboard';
+import Login from './pages/Auth/Login';
 
-// A generic "working" page template that looks like a real module instead of "under construction"
-const GenericPage = ({ title, description, cols }) => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+const DOCTOR_OPTIONS = [
+  'Dr. Priya Nair',
+  'Dr. Robert Chen',
+  'Dr. Anita Desai',
+  'Dr. Vikram Malhotra',
+  'Dr. Sarah Johnson',
+  'Dr. Kavita Verma'
+];
+
+const MEDICINE_OPTIONS = [
+  'Paracetamol 650mg',
+  'Amoxicillin 500mg',
+  'Pantoprazole 40mg',
+  'Telmisartan 40mg',
+  'Naproxen 250mg',
+  'Omeprazole 20mg',
+  'IV Ceftriaxone 1g',
+  'Cefixime 200mg'
+];
+
+const STATUS_OPTIONS = [
+  'Scheduled',
+  'Confirmed',
+  'Pending',
+  'Checked In',
+  'In Consultation',
+  'Completed',
+  'Active',
+  'Available',
+  'Occupied',
+  'Dispatched'
+];
+
+// Helper component for status badges
+const StatusBadge = ({ status }) => {
+  const s = String(status || '').toLowerCase();
+  let bg = 'bg-slate-100 text-slate-700 border-slate-200';
+  
+  if (['active', 'completed', 'verified', 'available', 'paid', 'approved', 'checked_in', 'confirmed'].some(k => s.includes(k))) {
+    bg = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+  } else if (['pending', 'scheduled', 'in progress', 'occupied', 'requested', 'in consultation', 'waiting'].some(k => s.includes(k))) {
+    bg = 'bg-amber-50 text-amber-700 border-amber-200';
+  } else if (['urgent', 'high', 'critical', 'low stock', 'overdue', 'cancelled', 'on leave'].some(k => s.includes(k))) {
+    bg = 'bg-rose-50 text-rose-700 border-rose-200';
+  }
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
-      
-      {/* Modal Overlay */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center p-6 border-b border-slate-100">
-              <h2 className="text-xl font-bold text-slate-800">Add New {title.split(' ')[0]}</h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${bg}`}>
+      {status}
+    </span>
+  );
+};
+
+const isDateTimeField = (col) => {
+  const c = col.toLowerCase();
+  return (
+    c.includes('date') ||
+    c.includes('time') ||
+    c === 'recorded at' ||
+    c === 'created at' ||
+    c === 'logged at' ||
+    c === 'updated at'
+  );
+};
+
+// --- CUSTOM INTERACTIVE DATE & TIME PICKER COMPONENT ---
+const DateTimePicker = ({ value, onChange, placeholder = "Select Date & Time" }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = React.useRef(null);
+
+  // Parse date/time string to component state
+  const parseVal = (valStr) => {
+    let d = new Date();
+    let hours = d.getHours();
+    let minutes = Math.floor(d.getMinutes() / 5) * 5;
+    let ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12 || 12;
+
+    if (valStr) {
+      try {
+        const str = String(valStr).trim();
+        const parts = str.split(' ');
+        if (parts.length >= 2) {
+          const dateParts = parts[0].split('-');
+          if (dateParts.length === 3) {
+            d = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
+          }
+          if (parts[1]) {
+            const timeParts = parts[1].split(':');
+            if (timeParts.length >= 2) {
+              hours = parseInt(timeParts[0]);
+              minutes = parseInt(timeParts[1]);
+            }
+          }
+          if (parts[2] && (parts[2] === 'AM' || parts[2] === 'PM')) {
+            ampm = parts[2];
+          }
+        } else if (str.includes('T')) {
+          const dt = new Date(str);
+          if (!isNaN(dt.getTime())) {
+            d = dt;
+            let h = d.getHours();
+            ampm = h >= 12 ? 'PM' : 'AM';
+            hours = h % 12 || 12;
+            minutes = d.getMinutes();
+          }
+        }
+      } catch (e) {}
+    }
+
+    return {
+      year: d.getFullYear(),
+      month: d.getMonth(),
+      day: d.getDate(),
+      hour: hours,
+      minute: minutes,
+      ampm: ampm
+    };
+  };
+
+  const [state, setState] = useState(() => parseVal(value));
+
+  useEffect(() => {
+    if (value) {
+      setState(parseVal(value));
+    }
+  }, [value]);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const daysOfWeek = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+
+  const formatResult = (s) => {
+    const mm = String(s.month + 1).padStart(2, '0');
+    const dd = String(s.day).padStart(2, '0');
+    const yyyy = s.year;
+    const hh = String(s.hour).padStart(2, '0');
+    const min = String(s.minute).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd} ${hh}:${min} ${s.ampm}`;
+  };
+
+  const updateStateAndEmit = (newState) => {
+    setState(newState);
+    const formatted = formatResult(newState);
+    onChange(formatted);
+  };
+
+  const daysInMonth = new Date(state.year, state.month + 1, 0).getDate();
+  const firstDayOfWeek = new Date(state.year, state.month, 1).getDay();
+
+  const now = new Date();
+  const todayYear = now.getFullYear();
+  const todayMonth = now.getMonth();
+  const todayDay = now.getDate();
+  const todayHour = now.getHours();
+  const todayMinute = now.getMinutes();
+
+  // Check if navigating to prev month is allowed (cannot go before current month)
+  const isPrevMonthDisabled =
+    state.year < todayYear || (state.year === todayYear && state.month <= todayMonth);
+
+  // Check if a day cell is in the past
+  const isDayInPast = (dNum) => {
+    if (state.year < todayYear) return true;
+    if (state.year === todayYear && state.month < todayMonth) return true;
+    if (state.year === todayYear && state.month === todayMonth && dNum < todayDay) return true;
+    return false;
+  };
+
+  // Check if selected date is TODAY
+  const isTodaySelected =
+    state.year === todayYear && state.month === todayMonth && state.day === todayDay;
+
+  // Check if hour is in past (if today is selected)
+  const isHourInPast = (h, ap) => {
+    if (!isTodaySelected) return false;
+    let h24 = ap === 'PM' ? (h === 12 ? 12 : h + 12) : (h === 12 ? 0 : h);
+    return h24 < todayHour;
+  };
+
+  // Check if minute is in past (if today & current hour are selected)
+  const isMinuteInPast = (m) => {
+    if (!isTodaySelected) return false;
+    let currentSelH24 = state.ampm === 'PM' ? (state.hour === 12 ? 12 : state.hour + 12) : (state.hour === 12 ? 0 : state.hour);
+    if (currentSelH24 < todayHour) return true;
+    if (currentSelH24 === todayHour && m < todayMinute) return true;
+    return false;
+  };
+
+  const handlePrevMonth = () => {
+    if (isPrevMonthDisabled) return;
+    let m = state.month - 1;
+    let y = state.year;
+    if (m < 0) {
+      m = 11;
+      y -= 1;
+    }
+    const maxDays = new Date(y, m + 1, 0).getDate();
+    updateStateAndEmit({ ...state, month: m, year: y, day: Math.min(state.day, maxDays) });
+  };
+
+  const handleNextMonth = () => {
+    let m = state.month + 1;
+    let y = state.year;
+    if (m > 11) {
+      m = 0;
+      y += 1;
+    }
+    const maxDays = new Date(y, m + 1, 0).getDate();
+    updateStateAndEmit({ ...state, month: m, year: y, day: Math.min(state.day, maxDays) });
+  };
+
+  const handleSelectDay = (d) => {
+    if (isDayInPast(d)) return;
+    updateStateAndEmit({ ...state, day: d });
+  };
+
+  const handleSelectHour = (h) => {
+    if (isHourInPast(h, state.ampm)) return;
+    updateStateAndEmit({ ...state, hour: h });
+  };
+
+  const handleSelectMinute = (m) => {
+    if (isMinuteInPast(m)) return;
+    updateStateAndEmit({ ...state, minute: m });
+  };
+
+  const handleToggleAmPm = (ampm) => {
+    updateStateAndEmit({ ...state, ampm: ampm });
+  };
+
+  const handleToday = () => {
+    const cur = new Date();
+    let h = cur.getHours();
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    const newState = {
+      year: cur.getFullYear(),
+      month: cur.getMonth(),
+      day: cur.getDate(),
+      hour: h,
+      minute: Math.floor(cur.getMinutes() / 5) * 5,
+      ampm: ampm
+    };
+    updateStateAndEmit(newState);
+  };
+
+  const handleClear = () => {
+    onChange('');
+    setIsOpen(false);
+  };
+
+  const formattedDisplay = value ? value : formatResult(state);
+  const hoursList = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+  const minutesList = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+
+  return (
+    <div className="relative w-full" ref={dropdownRef}>
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus-within:ring-2 focus-within:ring-blue-500 bg-white cursor-pointer flex items-center justify-between text-sm font-medium text-slate-800 shadow-sm hover:border-slate-300 transition-colors"
+      >
+        <span className={value ? "text-slate-800 font-semibold" : "text-slate-400"}>
+          {formattedDisplay}
+        </span>
+        <div className="flex items-center space-x-1 text-slate-400">
+          <Calendar className="w-4 h-4 text-blue-600" />
+          <Clock className="w-4 h-4 text-blue-500" />
+        </div>
+      </div>
+
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-2 z-50 bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 flex flex-col md:flex-row gap-4 animate-in zoom-in-95 duration-150 min-w-[340px]">
+          {/* Calendar Section (Left Side) */}
+          <div className="flex-1 min-w-[210px]">
+            <div className="flex items-center justify-between mb-3 px-1">
+              <span className="font-bold text-slate-800 text-sm">
+                {monthNames[state.month]} {state.year}
+              </span>
+              <div className="flex space-x-1">
+                <button
+                  type="button"
+                  disabled={isPrevMonthDisabled}
+                  onClick={handlePrevMonth}
+                  className={`p-1 rounded-lg transition-colors ${
+                    isPrevMonthDisabled
+                      ? 'text-slate-300 cursor-not-allowed'
+                      : 'hover:bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNextMonth}
+                  className="p-1 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-            <div className="p-6 space-y-4">
-              {cols.slice(0, 3).map((col, idx) => (
-                <div key={idx}>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">{col}</label>
-                  <input type="text" className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder={`Enter ${col.toLowerCase()}`} />
-                </div>
+
+            <div className="grid grid-cols-7 text-center text-xs font-semibold text-slate-400 mb-1">
+              {daysOfWeek.map((day, idx) => (
+                <div key={idx} className="py-1">{day}</div>
               ))}
             </div>
-            <div className="p-6 border-t border-slate-100 flex justify-end space-x-3 bg-slate-50 rounded-b-2xl">
-              <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
-              <button onClick={() => { alert("Details added successfully!"); setIsModalOpen(false); }} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm">Save Details</button>
+
+            <div className="grid grid-cols-7 text-center text-xs gap-1">
+              {Array.from({ length: firstDayOfWeek }).map((_, idx) => (
+                <div key={`empty-${idx}`} className="py-1.5" />
+              ))}
+              {Array.from({ length: daysInMonth }).map((_, idx) => {
+                const dayNum = idx + 1;
+                const isSelected = state.day === dayNum;
+                const isPast = isDayInPast(dayNum);
+                return (
+                  <button
+                    key={dayNum}
+                    type="button"
+                    disabled={isPast}
+                    onClick={() => !isPast && handleSelectDay(dayNum)}
+                    className={`py-1.5 rounded-lg font-medium transition-all ${
+                      isPast
+                        ? 'text-slate-300 cursor-not-allowed opacity-40 line-through'
+                        : isSelected
+                        ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-200'
+                        : 'text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    {dayNum}
+                  </button>
+                );
+              })}
             </div>
+
+            <div className="flex justify-between items-center mt-4 pt-2 border-t border-slate-100 text-xs">
+              <button
+                type="button"
+                onClick={handleClear}
+                className="text-slate-500 hover:text-slate-800 font-medium"
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                onClick={handleToday}
+                className="text-blue-600 hover:text-blue-700 font-bold"
+              >
+                Today
+              </button>
+            </div>
+          </div>
+
+          <div className="hidden md:block w-[1px] bg-slate-100 self-stretch" />
+
+          {/* Time Section (Right Side) */}
+          <div className="w-full md:w-32 flex flex-col">
+            <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 px-1 text-center">
+              Time
+            </div>
+
+            <div className="flex gap-1.5 justify-center flex-1">
+              {/* Hours Column */}
+              <div className="flex flex-col gap-1 max-h-48 overflow-y-auto pr-0.5 scrollbar-thin">
+                {hoursList.map((h) => {
+                  const isSel = state.hour === h;
+                  const isPast = isHourInPast(h, state.ampm);
+                  return (
+                    <button
+                      key={h}
+                      type="button"
+                      disabled={isPast}
+                      onClick={() => !isPast && handleSelectHour(h)}
+                      className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all ${
+                        isPast
+                          ? 'text-slate-300 cursor-not-allowed opacity-40'
+                          : isSel
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      {String(h).padStart(2, '0')}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Minutes Column */}
+              <div className="flex flex-col gap-1 max-h-48 overflow-y-auto pr-0.5 scrollbar-thin">
+                {minutesList.map((m) => {
+                  const isSel = state.minute === m;
+                  const isPast = isMinuteInPast(m);
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      disabled={isPast}
+                      onClick={() => !isPast && handleSelectMinute(m)}
+                      className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all ${
+                        isPast
+                          ? 'text-slate-300 cursor-not-allowed opacity-40'
+                          : isSel
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      {String(m).padStart(2, '0')}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* AM / PM Column */}
+              <div className="flex flex-col gap-1">
+                {['AM', 'PM'].map((ap) => {
+                  const isSel = state.ampm === ap;
+                  return (
+                    <button
+                      key={ap}
+                      type="button"
+                      onClick={() => handleToggleAmPm(ap)}
+                      className={`px-2 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        isSel
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      {ap}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              className="mt-3 w-full py-1.5 bg-blue-600 text-white font-semibold text-xs rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
+            >
+              Done
+            </button>
           </div>
         </div>
       )}
+    </div>
+  );
+};
 
-      <div className="flex justify-between items-center mb-6">
+
+// Generic Interactive Page Component
+const GenericPage = ({ title, description, cols, defaultData = [], apiEndpoint, isLabReport = false }) => {
+  const [data, setData] = useState(defaultData);
+  const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formData, setFormData] = useState({});
+  const [dateError, setDateError] = useState('');
+
+  const pageSize = 5;
+
+  // Fetch from backend
+  useEffect(() => {
+    if (apiEndpoint) {
+      setLoading(true);
+      fetch(apiEndpoint)
+        .then((res) => {
+          if (res.ok) return res.json();
+          throw new Error('API fetch failed');
+        })
+        .then((apiItems) => {
+          if (Array.isArray(apiItems)) {
+            const mapped = apiItems.map((item, idx) => ({ ...item, id: item.id || idx + 1 }));
+            setData(mapped);
+          }
+        })
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    }
+  }, [apiEndpoint]);
+
+  // Filtered rows
+  const filteredData = useMemo(() => {
+    return data.filter((row) => {
+      const matchesSearch = cols.some((col) => {
+        const val = row[col] || Object.values(row).join(' ');
+        return String(val).toLowerCase().includes(searchQuery.toLowerCase());
+      });
+
+      if (filterStatus === 'All') return matchesSearch;
+      const statusVal = String(row.Status || row.status || row.Availability || '').toLowerCase();
+      return matchesSearch && statusVal.includes(filterStatus.toLowerCase());
+    });
+  }, [data, cols, searchQuery, filterStatus]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredData.length / pageSize) || 1;
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredData.slice(start, start + pageSize);
+  }, [filteredData, currentPage]);
+
+  const handleOpenModal = () => {
+    setDateError('');
+    const initialForm = {};
+    const now = new Date();
+    let h = now.getHours();
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const yyyy = now.getFullYear();
+    const hh = String(h).padStart(2, '0');
+    const min = String(Math.floor(now.getMinutes() / 5) * 5).padStart(2, '0');
+    const localIsoDateTime = `${yyyy}-${mm}-${dd} ${hh}:${min} ${ampm}`;
+
+    cols.forEach((col) => {
+      const colLower = col.toLowerCase();
+      if (colLower.includes('id') || colLower.includes('code') || colLower.includes('token') || colLower.includes('batch')) {
+        const rand = Math.floor(1000 + Math.random() * 9000);
+        if (colLower.includes('patient')) initialForm[col] = `PAT-${rand}`;
+        else if (colLower.includes('appointment')) initialForm[col] = `APT-${rand}`;
+        else if (colLower.includes('invoice') || colLower.includes('bill')) initialForm[col] = `INV-2026-${rand}`;
+        else if (colLower.includes('token')) initialForm[col] = `TK-${Math.floor(10 + Math.random() * 90)}`;
+        else initialForm[col] = `ID-${rand}`;
+      } else if (isDateTimeField(col)) {
+        initialForm[col] = localIsoDateTime;
+      } else if (colLower.includes('doctor')) {
+        initialForm[col] = DOCTOR_OPTIONS[0];
+      } else if (colLower.includes('medicine') || colLower.includes('tablet')) {
+        initialForm[col] = MEDICINE_OPTIONS[0];
+      } else if (colLower.includes('status') || colLower.includes('availability')) {
+        initialForm[col] = 'Scheduled';
+      }
+    });
+    setFormData(initialForm);
+    setIsModalOpen(true);
+  };
+
+  const handleInputChange = (col, val) => {
+    setDateError('');
+    setFormData((prev) => ({ ...prev, [col]: val }));
+  };
+
+  const handleCreateNew = (e) => {
+    e.preventDefault();
+    setDateError('');
+
+    // Strict Past Date & Time Validation
+    for (const col of cols) {
+      if (isDateTimeField(col)) {
+        const valStr = formData[col];
+        if (valStr) {
+          try {
+            const parts = String(valStr).trim().split(' ');
+            if (parts.length >= 2) {
+              const dateParts = parts[0].split('-');
+              const timeParts = parts[1].split(':');
+              if (dateParts.length === 3 && timeParts.length >= 2) {
+                let y = parseInt(dateParts[0]);
+                let m = parseInt(dateParts[1]) - 1;
+                let d = parseInt(dateParts[2]);
+                let h = parseInt(timeParts[0]);
+                let min = parseInt(timeParts[1]);
+                let ap = parts[2] || 'AM';
+
+                if (ap === 'PM' && h < 12) h += 12;
+                if (ap === 'AM' && h === 12) h = 0;
+
+                const selectedDate = new Date(y, m, d, h, min);
+                const now = new Date();
+                if (selectedDate.getTime() < now.getTime() - 2 * 60000) {
+                  setDateError(`Error: Invalid Selection! "${col}" cannot be a previous/past date & time (${valStr}). Please select today or an upcoming date & time.`);
+                  return;
+                }
+              }
+            }
+          } catch (err) {}
+        }
+      }
+    }
+
+    const newEntry = { ...formData };
+    cols.forEach((col) => {
+      if (!newEntry[col]) {
+        const now = new Date();
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        newEntry[col] = isDateTimeField(col) ? `${yyyy}-${mm}-${dd} 10:00 AM` : `Sample ${col}`;
+      }
+    });
+
+
+    if (apiEndpoint) {
+      fetch(apiEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newEntry),
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((createdItem) => {
+          if (createdItem) {
+            setData((prev) => [createdItem, ...prev.filter((i) => i.id !== createdItem.id)]);
+          } else {
+            setData((prev) => [{ id: Date.now(), ...newEntry }, ...prev]);
+          }
+        })
+        .catch(() => {
+          setData((prev) => [{ id: Date.now(), ...newEntry }, ...prev]);
+        });
+    } else {
+      setData((prev) => [{ id: Date.now(), ...newEntry }, ...prev]);
+    }
+
+    setFormData({});
+    setIsModalOpen(false);
+  };
+
+  const handleDelete = (id) => {
+    if (apiEndpoint) {
+      fetch(`${apiEndpoint}/${id}`, { method: 'DELETE' }).catch(() => {});
+    }
+    setData(data.filter((item) => item.id !== id));
+  };
+
+  const handleDownloadReport = (row) => {
+    const patientName = row.Patient || row['Patient Name'] || 'Patient';
+    const reportTitle = row['Report Name'] || row['Test Name'] || row['File Name'] || 'Lab Report';
+
+    const reportContent = `
+=====================================================
+            CITY CARE GENERAL HOSPITAL
+            OFFICIAL DIAGNOSTIC LAB REPORT
+=====================================================
+
+Date Generated : ${new Date().toLocaleString()}
+Report Title   : ${reportTitle}
+Patient Name   : ${patientName}
+Status         : Verified & Completed
+
+SUMMARY OF DIAGNOSTIC FINDINGS:
+-----------------------------------------------------
+- All blood count parameters within normal ranges.
+- Hemoglobin: 14.2 g/dL (Normal)
+- White Blood Cells: 6,500 /uL (Normal)
+- Platelet Count: 250,000 /uL (Normal)
+- Verified by: Anil Mehta (Senior Pathologist)
+
+-----------------------------------------------------
+Confidential Medical Report. Hospital Seal Applied.
+=====================================================
+`;
+
+    const blob = new Blob([reportContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${reportTitle.replace(/[^a-z0-9]/gi, '_')}_${patientName.replace(/[^a-z0-9]/gi, '_')}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
+      {/* Modal Overlay */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md animate-in zoom-in-95 duration-200 overflow-hidden">
+            <div className="flex justify-between items-center p-6 border-b border-slate-100 bg-slate-50/50">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800">Add New Record</h2>
+                <p className="text-xs text-slate-500 mt-0.5">{title}</p>
+              </div>
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleCreateNew}>
+              {dateError && (
+                <div className="mx-6 mt-4 p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-semibold flex items-center animate-in fade-in">
+                  <AlertCircle className="w-4 h-4 mr-2 text-rose-600 shrink-0" />
+                  {dateError}
+                </div>
+              )}
+
+              <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+                {cols.map((col, idx) => {
+                  const colLower = col.toLowerCase();
+                  const isDoctor = colLower.includes('doctor');
+                  const isMedicine = colLower.includes('medicine') || colLower.includes('tablet');
+                  const isStatus = colLower.includes('status') || colLower.includes('availability');
+                  const isDateTime = isDateTimeField(col);
+
+                  return (
+                    <div key={idx}>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">{col}</label>
+                      {isDoctor ? (
+                        <select
+                          value={formData[col] || DOCTOR_OPTIONS[0]}
+                          onChange={(e) => handleInputChange(col, e.target.value)}
+                          className="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm bg-white cursor-pointer font-medium text-slate-800"
+                        >
+                          {DOCTOR_OPTIONS.map((doc, dIdx) => (
+                            <option key={dIdx} value={doc}>{doc}</option>
+                          ))}
+                        </select>
+                      ) : isMedicine ? (
+                        <select
+                          value={formData[col] || MEDICINE_OPTIONS[0]}
+                          onChange={(e) => handleInputChange(col, e.target.value)}
+                          className="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm bg-white cursor-pointer font-medium text-slate-800"
+                        >
+                          {MEDICINE_OPTIONS.map((med, mIdx) => (
+                            <option key={mIdx} value={med}>{med}</option>
+                          ))}
+                        </select>
+                      ) : isStatus ? (
+                        <select
+                          value={formData[col] || STATUS_OPTIONS[0]}
+                          onChange={(e) => handleInputChange(col, e.target.value)}
+                          className="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm bg-white cursor-pointer font-medium text-slate-800"
+                        >
+                          {STATUS_OPTIONS.map((st, sIdx) => (
+                            <option key={sIdx} value={st}>{st}</option>
+                          ))}
+                        </select>
+                      ) : isDateTime ? (
+                        <DateTimePicker
+                          value={formData[col] || ''}
+                          onChange={(val) => handleInputChange(col, val)}
+                          placeholder={`Select ${col}`}
+                        />
+                      ) : (
+                        <input
+                          type="text"
+                          required={idx === 0}
+                          value={formData[col] || ''}
+                          onChange={(e) => handleInputChange(col, e.target.value)}
+                          className="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm font-medium text-slate-800"
+                          placeholder={`Enter ${col.toLowerCase()}`}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="p-4 border-t border-slate-100 flex justify-end space-x-3 bg-slate-50 rounded-b-2xl">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm shadow-blue-200"
+                >
+                  Save Record
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+      )}
+
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">{title}</h1>
           <p className="text-sm text-slate-500 mt-1">{description}</p>
         </div>
-        <div className="flex space-x-3">
-          <button className="flex items-center px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 shadow-sm">
-            <Settings2 className="w-4 h-4 mr-2" />
-            Manage
+        <div className="flex items-center space-x-3">
+          <button 
+            onClick={() => { setData([...data].reverse()); }}
+            className="flex items-center px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 shadow-sm transition-colors"
+          >
+            <RefreshCw className="w-4 h-4 mr-2 text-slate-500" />
+            Refresh
           </button>
-          <button onClick={() => setIsModalOpen(true)} className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm shadow-blue-200">
+          <button
+            onClick={handleOpenModal}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 shadow-sm shadow-blue-200 transition-colors"
+          >
             <Plus className="w-4 h-4 mr-2" />
             Create New
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-            <input 
-              type="text" 
-              placeholder="Search records..." 
-              className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-64"
+      {/* Table Container */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        {/* Search & Filter Bar */}
+        <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 bg-slate-50/50">
+          <div className="relative flex-1 max-w-md">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 transform -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+              placeholder={`Search ${title.toLowerCase()}...`}
+              className="pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full bg-white"
             />
           </div>
-          <button className="flex items-center px-3 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50">
-            <Filter className="w-4 h-4 mr-2" />
-            Filters
-          </button>
+          
+          <div className="flex items-center space-x-2">
+            <Filter className="w-4 h-4 text-slate-400 ml-1" />
+            <select
+              value={filterStatus}
+              onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
+              className="px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl text-slate-600 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            >
+              <option value="All">All Statuses</option>
+              <option value="Active">Active / Completed</option>
+              <option value="Scheduled">Scheduled / Pending</option>
+              <option value="Confirmed">Confirmed</option>
+            </select>
+          </div>
         </div>
 
+        {/* Data Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
+            <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[11px] tracking-wider">
               <tr>
                 {cols.map((col, idx) => (
-                  <th key={idx} className="px-6 py-3 font-semibold">{col}</th>
+                  <th key={idx} className="px-6 py-3.5">{col}</th>
                 ))}
-                <th className="px-6 py-3 text-right">Actions</th>
+                <th className="px-6 py-3.5 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {[1, 2, 3, 4, 5].map((row) => (
-                <tr key={row} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
-                  {cols.map((col, idx) => (
-                    <td key={idx} className="px-6 py-4 text-slate-700">
-                      {idx === 0 ? <span className="font-medium text-slate-900">Sample {col} {row}</span> : 'Data entry...'}
+            <tbody className="divide-y divide-slate-100">
+              {paginatedData.length > 0 ? (
+                paginatedData.map((row, rowIdx) => (
+                  <tr key={row.id || rowIdx} className="hover:bg-slate-50/70 transition-colors group">
+                    {cols.map((col, colIdx) => {
+                      const val = row[col] || Object.values(row)[colIdx + 1] || 'N/A';
+                      const isStatusCol = col.toLowerCase().includes('status') || col.toLowerCase().includes('availability');
+
+                      return (
+                        <td key={colIdx} className="px-6 py-4 text-slate-700">
+                          {colIdx === 0 ? (
+                            <span className="font-semibold text-slate-900">{val}</span>
+                          ) : isStatusCol ? (
+                            <StatusBadge status={val} />
+                          ) : (
+                            val
+                          )}
+                        </td>
+                      );
+                    })}
+                    <td className="px-6 py-4 text-right relative space-x-2">
+                      {isLabReport && (
+                        <button
+                          onClick={() => handleDownloadReport(row)}
+                          title="Download Lab Report"
+                          className="inline-flex items-center px-2.5 py-1 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200"
+                        >
+                          <Download className="w-3.5 h-3.5 mr-1" />
+                          Download
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDelete(row.id)}
+                        title="Delete record"
+                        className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </td>
-                  ))}
-                  <td className="px-6 py-4 text-right">
-                    <button className="text-slate-400 hover:text-slate-600">
-                      <MoreHorizontal className="w-5 h-5" />
-                    </button>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={cols.length + 1} className="px-6 py-12 text-center text-slate-400">
+                    No matching records found.
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
-        
-        <div className="p-4 border-t border-slate-200 flex justify-between items-center text-sm text-slate-500 bg-slate-50/50">
-          <span>Showing 1 to 5 of 24 records</span>
-          <div className="flex space-x-1">
-            <button className="px-3 py-1 border border-slate-200 rounded hover:bg-white bg-slate-100 disabled:opacity-50" disabled>Prev</button>
-            <button className="px-3 py-1 border border-slate-200 rounded hover:bg-slate-100 bg-white">1</button>
-            <button className="px-3 py-1 border border-slate-200 rounded hover:bg-slate-100 bg-white">2</button>
-            <button className="px-3 py-1 border border-slate-200 rounded hover:bg-white bg-slate-100">Next</button>
+
+        {/* Footer / Pagination */}
+        <div className="p-4 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-3 text-sm text-slate-500 bg-slate-50/50">
+          <span>
+            Showing {filteredData.length > 0 ? (currentPage - 1) * pageSize + 1 : 0} to{' '}
+            {Math.min(currentPage * pageSize, filteredData.length)} of {filteredData.length} records
+          </span>
+          
+          <div className="flex items-center space-x-1">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+              disabled={currentPage === 1}
+              className="p-1.5 border border-slate-200 rounded-lg hover:bg-white bg-slate-100 disabled:opacity-40 transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
+              <button
+                key={pg}
+                onClick={() => setCurrentPage(pg)}
+                className={`px-3 py-1 text-xs font-semibold border rounded-lg transition-colors ${
+                  currentPage === pg
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                {pg}
+              </button>
+            ))}
+
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="p-1.5 border border-slate-200 rounded-lg hover:bg-white bg-slate-100 disabled:opacity-40 transition-colors"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </div>
@@ -113,144 +949,217 @@ const GenericPage = ({ title, description, cols }) => {
   );
 };
 
+// --- MODULE PAGES WITH SMART DROPDOWNS & DOWNLOAD FUNCTIONALITY ---
+
 // 1. Admin
-const UserManagement = () => <GenericPage title="User Management" description="Manage system users and access roles." cols={['Name', 'Role', 'Email', 'Status']} />;
-const DoctorManagement = () => <GenericPage title="Doctor Management" description="Manage doctors and their specializations." cols={['Doctor Name', 'Department', 'Phone', 'Availability']} />;
-const DepartmentManagement = () => <GenericPage title="Department Management" description="Manage hospital departments." cols={['Dept Name', 'Head of Dept', 'Total Staff']} />;
-const StaffManagement = () => <GenericPage title="Staff Management" description="Manage nurses, lab technicians, etc." cols={['Staff Name', 'Role', 'Department', 'Shift']} />;
-const ReportsAnalytics = () => <GenericPage title="Reports & Analytics" description="System reports and data exports." cols={['Report Name', 'Generated By', 'Date', 'Type']} />;
-const SystemSettings = () => <GenericPage title="System Settings" description="Global application configuration." cols={['Setting Key', 'Value', 'Last Updated']} />;
+const UserManagement = () => <GenericPage title="User Management" description="Manage system users, login roles, and permissions." cols={['Name', 'Role', 'Email', 'Status']} apiEndpoint="/api/v1/admin/users" defaultData={[{ id: 1, Name: 'Dr. Sarah Johnson', Role: 'Chief Admin', Email: 'sarah.j@hospital.org', Status: 'Active' }]} />;
+const DoctorManagement = () => <GenericPage title="Doctor Management" description="Manage active doctors and specializations." cols={['Doctor Name', 'Department', 'Phone', 'Availability']} apiEndpoint="/api/v1/admin/doctors" defaultData={[{ id: 1, 'Doctor Name': 'Dr. Priya Nair', Department: 'Cardiology', Phone: '+91 98765 12345', Availability: 'Available' }]} />;
+const DepartmentManagement = () => <GenericPage title="Department Management" description="Manage hospital wings and medical heads." cols={['Dept Name', 'Head of Dept', 'Total Staff', 'Status']} apiEndpoint="/api/v1/admin/departments" defaultData={[{ id: 1, 'Dept Name': 'Cardiology', 'Head of Dept': 'Dr. Priya Nair', 'Total Staff': '18 Staff', Status: 'Active' }]} />;
+const StaffManagement = () => <GenericPage title="Staff Management" description="Manage nursing, lab, and administrative personnel." cols={['Staff Name', 'Role', 'Department', 'Shift']} apiEndpoint="/api/v1/admin/staff" defaultData={[{ id: 1, 'Staff Name': 'Sunita Rao', Role: 'Head Nurse', Department: 'ICU Ward', Shift: 'Morning Shift' }]} />;
+const ReportsAnalytics = () => <GenericPage title="Reports & Analytics" description="System reports and clinical exports." cols={['Report Name', 'Generated By', 'Date', 'Type']} apiEndpoint="/api/v1/admin/reports" isLabReport={true} defaultData={[{ id: 1, 'Report Name': 'Monthly Patient Flow Analysis', 'Generated By': 'Admin Bot', Date: '2026-08-13 10:30 AM', Type: 'Operational' }]} />;
+const SystemSettings = () => <GenericPage title="System Settings" description="Global application configuration." cols={['Setting Key', 'Value', 'Last Updated', 'Status']} apiEndpoint="/api/v1/admin/settings" defaultData={[{ id: 1, 'Setting Key': 'Hospital Name', Value: 'City Care General Hospital', 'Last Updated': '2026-08-13 12:00 PM', Status: 'Active' }]} />;
+const DeletedRecordsLog = () => <GenericPage title="Deleted Records Audit Log" description="All records marked as deleted in database and archived in deleted_records audit table." cols={['Category', 'Record ID', 'Deleted Data Snapshot', 'Deleted Timestamp', 'Status']} apiEndpoint="/api/v1/admin/deleted-records" defaultData={[]} />;
 
 // 2. Reception
-const PatientRegistration = () => <GenericPage title="Patient Registration" description="Register new patients." cols={['Patient ID', 'Name', 'Phone', 'Registered Date']} />;
-const AppointmentBooking = () => <GenericPage title="Appointment Booking" description="Schedule appointments." cols={['Appointment ID', 'Patient', 'Doctor', 'Date & Time', 'Status']} />;
-const QueueManagement = () => <GenericPage title="Queue Management" description="Monitor live queues." cols={['Token No', 'Patient', 'Doctor', 'Est. Time']} />;
-const OPIPRegistration = () => <GenericPage title="OP/IP Registration" description="Manage outpatient and inpatient status." cols={['Patient Name', 'Type', 'Department', 'Status']} />;
+const PatientRegistration = () => <GenericPage title="Patient Registration" description="Register new outpatient and inpatient records." cols={['Patient ID', 'Name', 'Phone', 'Registered Date', 'Status']} apiEndpoint="/api/v1/patients" defaultData={[{ id: 1, 'Patient ID': 'PAT-1001', Name: 'Aarav Kumar', Phone: '+91 98765 43210', 'Registered Date': '2026-08-13 09:15 AM', Status: 'Active' }]} />;
+const AppointmentBooking = () => <GenericPage title="Appointment Booking" description="Schedule consultations with specialized doctors." cols={['Appointment ID', 'Patient', 'Doctor', 'Date & Time', 'Status']} apiEndpoint="/api/v1/appointments" defaultData={[{ id: 1, 'Appointment ID': 'APT-801', Patient: 'Aarav Kumar', Doctor: 'Dr. Priya Nair', 'Date & Time': '2026-08-13 10:30 AM', Status: 'Confirmed' }]} />;
+const QueueManagement = () => <GenericPage title="Queue Management" description="Real-time outpatient token tracking." cols={['Token No', 'Patient', 'Doctor', 'Est. Time', 'Status']} apiEndpoint="/api/v1/reception/queue" defaultData={[{ id: 1, 'Token No': 'TK-01', Patient: 'Aarav Kumar', Doctor: 'Dr. Priya Nair', 'Est. Time': '10:30 AM', Status: 'In Consultation' }]} />;
+const OPIPRegistration = () => <GenericPage title="OP/IP Registration" description="Manage status between Outpatient and Inpatient wings." cols={['Patient Name', 'Type', 'Department', 'Status']} apiEndpoint="/api/v1/reception/op-ip" defaultData={[{ id: 1, 'Patient Name': 'Aarav Kumar', Type: 'Outpatient (OP)', Department: 'Cardiology', Status: 'Checked In' }]} />;
 
 // 3. Doctor
-const ViewAppointments = () => <GenericPage title="View Appointments" description="Your appointments for today." cols={['Time', 'Patient Name', 'Type', 'Status']} />;
-const PatientHistory = () => <GenericPage title="Patient History" description="View previous records and consultations." cols={['Date', 'Diagnosis', 'Doctor', 'Notes']} />;
-const Diagnosis = () => <GenericPage title="Diagnosis" description="Record patient diagnosis." cols={['Patient', 'ICD Code', 'Description', 'Severity']} />;
-const Prescription = () => <GenericPage title="Prescription" description="Write and manage prescriptions." cols={['Patient', 'Medicines', 'Duration', 'Date']} />;
-const LabTestRequest = () => <GenericPage title="Lab Test Request" description="Request diagnostics." cols={['Patient', 'Test Name', 'Priority', 'Status']} />;
-const FollowupSchedule = () => <GenericPage title="Follow-up Schedule" description="Schedule follow-up visits." cols={['Patient', 'Next Visit Date', 'Reason']} />;
+const ViewAppointments = () => <GenericPage title="View Appointments" description="Today's clinical consultation list." cols={['Time', 'Patient Name', 'Doctor', 'Status']} apiEndpoint="/api/v1/doctor/appointments" defaultData={[{ id: 1, Time: '2026-08-13 10:30 AM', 'Patient Name': 'Aarav Kumar', Doctor: 'Dr. Priya Nair', Status: 'In Consultation' }]} />;
+const PatientHistory = () => <GenericPage title="Patient History" description="EMR history and past diagnoses." cols={['Date', 'Patient Name', 'Diagnosis', 'Notes']} apiEndpoint="/api/v1/doctor/patient-history" defaultData={[{ id: 1, Date: '2026-08-13 09:30 AM', 'Patient Name': 'Aarav Kumar', Diagnosis: 'Hypertension Stage 1', Notes: 'Prescribed Telmisartan 40mg once daily.' }]} />;
+const Diagnosis = () => <GenericPage title="Diagnosis" description="Record clinical findings and ICD codes." cols={['Patient', 'ICD Code', 'Description', 'Severity']} apiEndpoint="/api/v1/doctor/diagnosis" defaultData={[{ id: 1, Patient: 'Aarav Kumar', 'ICD Code': 'I10', Description: 'Essential hypertension', Severity: 'Moderate' }]} />;
+const Prescription = () => <GenericPage title="Prescription" description="Write and manage patient prescriptions with tablet selection." cols={['Patient', 'Doctor', 'Medicines', 'Duration', 'Date']} apiEndpoint="/api/v1/doctor/prescriptions" defaultData={[{ id: 1, Patient: 'Aarav Kumar', Doctor: 'Dr. Priya Nair', Medicines: 'Paracetamol 650mg, Amoxicillin 500mg', Duration: '5 Days', Date: '2026-08-13 10:45 AM' }]} />;
+const LabTestRequest = () => <GenericPage title="Lab Test Request" description="Request diagnostic blood tests and imaging." cols={['Patient', 'Test Name', 'Priority', 'Status']} apiEndpoint="/api/v1/doctor/lab-test-request" defaultData={[{ id: 1, Patient: 'Aarav Kumar', 'Test Name': 'CBC Blood Profile', Priority: 'Normal', Status: 'Requested' }]} />;
+const FollowupSchedule = () => <GenericPage title="Follow-up Schedule" description="Schedule chronic care review dates." cols={['Patient', 'Doctor', 'Next Visit Date', 'Reason', 'Status']} apiEndpoint="/api/v1/doctor/follow-up" defaultData={[{ id: 1, Patient: 'Aarav Kumar', Doctor: 'Dr. Priya Nair', 'Next Visit Date': '2026-08-27 11:00 AM', Reason: 'BP Re-assessment', Status: 'Scheduled' }]} />;
 
 // 4. Nurse
-const PatientVitals = () => <GenericPage title="Patient Vitals" description="Record BP, Heart Rate, Temp, etc." cols={['Patient', 'BP', 'Heart Rate', 'Temp', 'Recorded At']} />;
-const WardManagement = () => <GenericPage title="Ward Management" description="Monitor ward occupancy and status." cols={['Ward Name', 'Total Beds', 'Occupied', 'Nurse In-charge']} />;
-const MedicationAdmin = () => <GenericPage title="Medication Administration" description="Track administered medicines." cols={['Patient', 'Medicine', 'Dosage', 'Administered By', 'Time']} />;
-const NursingNotes = () => <GenericPage title="Nursing Notes" description="Daily observation notes." cols={['Patient', 'Notes', 'Added By', 'Date']} />;
+const PatientVitals = () => <GenericPage title="Patient Vitals" description="Record BP, Heart Rate, Temperature, Pain Scale (0-10), RBS, and SpO2." cols={['Patient', 'BP', 'Heart Rate', 'Temp', 'Pain Scale', 'RBS', 'SpO2', 'Recorded At']} apiEndpoint="/api/v1/nurse/patient-vitals" defaultData={[{ id: 1, Patient: 'Aarav Kumar', BP: '120/80 mmHg', 'Heart Rate': '72 bpm', Temp: '98.6 °F', 'Pain Scale': '2/10 (Mild)', RBS: '110 mg/dL', SpO2: '98%', 'Recorded At': '2026-08-13 09:00 AM' }]} />;
+const WardManagement = () => <GenericPage title="Ward Management" description="Monitor bed occupancy across wards." cols={['Ward Name', 'Total Beds', 'Occupied', 'Nurse In-charge']} apiEndpoint="/api/v1/nurse/ward-management" defaultData={[{ id: 1, 'Ward Name': 'ICU Block A', 'Total Beds': '10 Beds', Occupied: '8 Occupied', 'Nurse In-charge': 'Sunita Rao' }]} />;
+const MedicationAdmin = () => <GenericPage title="Medication Administration" description="Schedule and verify bedside doses." cols={['Patient', 'Medicine', 'Dosage', 'Administered By', 'Time']} apiEndpoint="/api/v1/nurse/medication-admin" defaultData={[{ id: 1, Patient: 'Siddharth Roy', Medicine: 'IV Ceftriaxone 1g', Dosage: '1 Vial', 'Administered By': 'Sunita Rao', Time: '2026-08-13 08:00 AM' }]} />;
+const NursingNotes = () => <GenericPage title="Nursing Notes" description="Daily nursing observation logs." cols={['Patient', 'Notes', 'Added By', 'Date']} apiEndpoint="/api/v1/nurse/nursing-notes" defaultData={[{ id: 1, Patient: 'Siddharth Roy', Notes: 'Patient reports mild incision pain. Vitals stable.', 'Added By': 'Sunita Rao', Date: '2026-08-13 08:30 AM' }]} />;
 
 // 5. Laboratory
-const TestRequestLab = () => <GenericPage title="Test Request" description="Pending test requests from doctors." cols={['Req ID', 'Patient', 'Test Type', 'Priority', 'Requested By']} />;
-const SampleCollection = () => <GenericPage title="Sample Collection" description="Track sample collection status." cols={['Sample ID', 'Patient', 'Test Name', 'Collected By', 'Status']} />;
-const ReportEntry = () => <GenericPage title="Report Entry" description="Enter test results." cols={['Test ID', 'Patient', 'Result Summary', 'Verified By']} />;
-const ReportUpload = () => <GenericPage title="Report Upload" description="Upload scanned reports/documents." cols={['Document ID', 'Patient', 'File Name', 'Upload Date']} />;
+const TestRequestLab = () => <GenericPage title="Test Request" description="Pending lab requests from doctors." cols={['Req ID', 'Patient', 'Test Type', 'Priority', 'Requested By']} apiEndpoint="/api/v1/laboratory/test-request" defaultData={[{ id: 1, 'Req ID': 'LAB-401', Patient: 'Aarav Kumar', 'Test Type': 'CBC Blood Profile', Priority: 'Normal', 'Requested By': 'Dr. Priya Nair' }]} />;
+const SampleCollection = () => <GenericPage title="Sample Collection" description="Track sample barcode status." cols={['Sample ID', 'Patient', 'Test Name', 'Collected By', 'Status']} apiEndpoint="/api/v1/laboratory/sample-collection" defaultData={[{ id: 1, 'Sample ID': 'SMP-991', Patient: 'Aarav Kumar', 'Test Name': 'CBC Blood Sample', 'Collected By': 'Anil Mehta', Status: 'Collected' }]} />;
+const ReportEntry = () => <GenericPage title="Report Entry" description="Enter diagnostic laboratory findings." cols={['Test ID', 'Patient', 'Result Summary', 'Verified By', 'Status']} apiEndpoint="/api/v1/laboratory/report-entry" isLabReport={true} defaultData={[{ id: 1, 'Test ID': 'LAB-401', Patient: 'Aarav Kumar', 'Result Summary': 'Hemoglobin 14.2 g/dL (Normal)', 'Verified By': 'Anil Mehta', Status: 'Verified' }]} />;
+const ReportUpload = () => <GenericPage title="Report Upload" description="Upload and download scanned diagnostic reports." cols={['Document ID', 'Patient', 'File Name', 'Upload Date', 'Status']} apiEndpoint="/api/v1/laboratory/report-upload" isLabReport={true} defaultData={[{ id: 1, 'Document ID': 'DOC-201', Patient: 'Siddharth Roy', 'File Name': 'Knee_MRI_Scan.pdf', 'Upload Date': '2026-08-13 14:20 PM', Status: 'Completed' }]} />;
 
 // 6. Pharmacy
-const MedicineInventory = () => <GenericPage title="Medicine Inventory" description="Manage pharmacy stock." cols={['Medicine Name', 'Batch No', 'Expiry Date', 'Stock Qty']} />;
-const PrescriptionProcessing = () => <GenericPage title="Prescription Processing" description="Dispense medicines for prescriptions." cols={['Prescription ID', 'Patient', 'Doctor', 'Status']} />;
-const MedicineBilling = () => <GenericPage title="Medicine Billing" description="Bill medicines to patients." cols={['Bill ID', 'Patient', 'Total Amount', 'Payment Status']} />;
-const StockAlerts = () => <GenericPage title="Stock Alerts" description="Low stock and expiry alerts." cols={['Medicine Name', 'Alert Type', 'Current Stock', 'Action Required']} />;
+const MedicineInventory = () => <GenericPage title="Medicine Inventory" description="Manage pharmacy stock and expiry dates." cols={['Medicine Name', 'Batch No', 'Expiry Date', 'Stock Qty', 'Status']} apiEndpoint="/api/v1/pharmacy/inventory" defaultData={[{ id: 1, 'Medicine Name': 'Paracetamol 650mg', 'Batch No': 'BAT-2024-X', 'Expiry Date': '2027-11-30 23:59 PM', 'Stock Qty': '1,200 Tabs', Status: 'Available' }]} />;
+const PrescriptionProcessing = () => <GenericPage title="Prescription Processing" description="Dispense medicines for prescriptions." cols={['Prescription ID', 'Patient', 'Doctor', 'Status']} apiEndpoint="/api/v1/pharmacy/prescription-processing" defaultData={[{ id: 1, 'Prescription ID': 'RX-501', Patient: 'Aarav Kumar', Doctor: 'Dr. Priya Nair', Status: 'Ready for Dispense' }]} />;
+const MedicineBilling = () => <GenericPage title="Medicine Billing" description="Bill medicines to patients." cols={['Bill ID', 'Patient', 'Total Amount', 'Payment Status']} apiEndpoint="/api/v1/pharmacy/medicine-billing" defaultData={[{ id: 1, 'Bill ID': 'PH-901', Patient: 'Aarav Kumar', 'Total Amount': '$24.50', 'Payment Status': 'Paid' }]} />;
+const StockAlerts = () => <GenericPage title="Stock Alerts" description="Low stock and re-order alerts." cols={['Medicine Name', 'Alert Type', 'Current Stock', 'Action Required']} apiEndpoint="/api/v1/pharmacy/stock-alerts" defaultData={[{ id: 1, 'Medicine Name': 'Pantoprazole 40mg', 'Alert Type': 'Low Stock', 'Current Stock': '80 Tabs', 'Action Required': 'Re-order 500 Tabs' }]} />;
 
 // 7. Inpatient (IP)
-const RoomAllocation = () => <GenericPage title="Room Allocation" description="Assign beds/rooms to patients." cols={['Room No', 'Ward Type', 'Patient', 'Status']} />;
-const Admission = () => <GenericPage title="Admission" description="Manage IP admissions." cols={['Admission ID', 'Patient', 'Admitted Date', 'Attending Doctor']} />;
-const TreatmentRecords = () => <GenericPage title="Treatment Records" description="Inpatient treatment history." cols={['Patient', 'Treatment Details', 'Date', 'Doctor']} />;
-const DailyProgress = () => <GenericPage title="Daily Progress" description="Daily clinical notes for IP." cols={['Patient', 'Progress Note', 'Added By', 'Date']} />;
-const DischargeSummary = () => <GenericPage title="Discharge Summary" description="Prepare and view discharge summaries." cols={['Patient', 'Discharge Date', 'Summary Status', 'Prepared By']} />;
+const RoomAllocation = () => <GenericPage title="Room Allocation" description="Assign beds and rooms to patients." cols={['Room No', 'Ward Type', 'Patient', 'Status']} apiEndpoint="/api/v1/inpatient/room-allocation" defaultData={[{ id: 1, 'Room No': 'Room 101', 'Ward Type': 'Deluxe Private', Patient: 'Siddharth Roy', Status: 'Occupied' }]} />;
+const Admission = () => <GenericPage title="Admission" description="Manage IP admissions." cols={['Admission ID', 'Patient', 'Admitted Date', 'Attending Doctor', 'Status']} apiEndpoint="/api/v1/inpatient/admissions" defaultData={[{ id: 1, 'Admission ID': 'IPD-301', Patient: 'Siddharth Roy', 'Admitted Date': '2026-08-10 11:45 AM', 'Attending Doctor': 'Dr. Vikram Malhotra', Status: 'Admitted' }]} />;
+const TreatmentRecords = () => <GenericPage title="Treatment Records" description="Inpatient treatment history." cols={['Patient', 'Treatment Details', 'Date', 'Doctor']} apiEndpoint="/api/v1/inpatient/treatment-records" defaultData={[{ id: 1, Patient: 'Siddharth Roy', 'Treatment Details': 'Knee Surgery', Date: '2026-08-11 10:00 AM', Doctor: 'Dr. Vikram Malhotra' }]} />;
+const DailyProgress = () => <GenericPage title="Daily Progress" description="Daily clinical notes for IP." cols={['Patient', 'Progress Note', 'Added By', 'Date']} apiEndpoint="/api/v1/inpatient/daily-progress" defaultData={[{ id: 1, Patient: 'Siddharth Roy', 'Progress Note': 'Post-op Day 1: Wound clean, active motion exercises started.', 'Added By': 'Dr. Vikram Malhotra', Date: '2026-08-13 09:00 AM' }]} />;
+const DischargeSummary = () => <GenericPage title="Discharge Summary" description="Prepare discharge summaries." cols={['Patient', 'Discharge Date', 'Summary Status', 'Prepared By']} apiEndpoint="/api/v1/inpatient/discharge-summary" isLabReport={true} defaultData={[{ id: 1, Patient: 'Karan Malhotra', 'Discharge Date': '2026-08-13 16:30 PM', 'Summary Status': 'Completed', 'Prepared By': 'Dr. Robert Chen' }]} />;
 
 // 8. Billing
-const ConsultationCharges = () => <GenericPage title="Consultation Charges" description="Manage OP consultation fees." cols={['Patient', 'Doctor', 'Amount', 'Date']} />;
-const LabCharges = () => <GenericPage title="Lab Charges" description="Manage diagnostic charges." cols={['Patient', 'Test Name', 'Amount', 'Status']} />;
-const PharmacyCharges = () => <GenericPage title="Pharmacy Charges" description="Medicine charges." cols={['Patient', 'Bill ID', 'Amount', 'Date']} />;
-const RoomCharges = () => <GenericPage title="Room Charges" description="IPD room and bed charges." cols={['Patient', 'Days Stayed', 'Total Amount', 'Status']} />;
-const PaymentGateway = () => <GenericPage title="Payment Gateway" description="Online transaction logs." cols={['Transaction ID', 'Patient', 'Amount', 'Method', 'Status']} />;
-const InvoiceGeneration = () => <GenericPage title="Invoice Generation" description="Generate consolidated invoices." cols={['Invoice ID', 'Patient', 'Total Amount', 'Due Date']} />;
+const ConsultationCharges = () => <GenericPage title="Consultation Charges" description="Manage OP consultation fees." cols={['Patient', 'Doctor', 'Amount', 'Date', 'Status']} apiEndpoint="/api/v1/billing/consultation-charges" defaultData={[{ id: 1, Patient: 'Aarav Kumar', Doctor: 'Dr. Priya Nair', Amount: '$50.00', Date: '2026-08-13 10:30 AM', Status: 'Paid' }]} />;
+const LabCharges = () => <GenericPage title="Lab Charges" description="Manage diagnostic charges." cols={['Patient', 'Test Name', 'Amount', 'Status']} apiEndpoint="/api/v1/billing/lab-charges" defaultData={[{ id: 1, Patient: 'Aarav Kumar', 'Test Name': 'CBC Blood Profile', Amount: '$35.00', Status: 'Paid' }]} />;
+const PharmacyCharges = () => <GenericPage title="Pharmacy Charges" description="Medicine charges." cols={['Patient', 'Bill ID', 'Amount', 'Date', 'Status']} apiEndpoint="/api/v1/billing/pharmacy-charges" defaultData={[{ id: 1, Patient: 'Aarav Kumar', 'Bill ID': 'PH-901', Amount: '$24.50', Date: '2026-08-13 11:00 AM', Status: 'Paid' }]} />;
+const RoomCharges = () => <GenericPage title="Room Charges" description="IPD room and bed charges." cols={['Patient', 'Days Stayed', 'Total Amount', 'Status']} apiEndpoint="/api/v1/billing/room-charges" defaultData={[{ id: 1, Patient: 'Siddharth Roy', 'Days Stayed': '2 Days', 'Total Amount': '$400.00', Status: 'Pending' }]} />;
+const PaymentGateway = () => <GenericPage title="Payment Gateway" description="Online transaction logs." cols={['Transaction ID', 'Patient', 'Amount', 'Method', 'Status']} apiEndpoint="/api/v1/billing/payment-gateway" defaultData={[{ id: 1, 'Transaction ID': 'TXN-9901', Patient: 'Aarav Kumar', Amount: '$109.50', Method: 'Credit Card', Status: 'Completed' }]} />;
+const InvoiceGeneration = () => <GenericPage title="Invoice Generation" description="Generate consolidated invoices." cols={['Invoice ID', 'Patient', 'Total Amount', 'Due Date', 'Status']} apiEndpoint="/api/v1/billing/invoices" defaultData={[{ id: 1, 'Invoice ID': 'INV-2026-01', Patient: 'Aarav Kumar', 'Total Amount': '$109.50', 'Due Date': '2026-08-13 17:00 PM', Status: 'Paid' }]} />;
 
 // 9. Patient Portal
-const PortalLogin = () => <GenericPage title="Portal Login Settings" description="Manage portal access." cols={['Patient User', 'Last Login', 'Account Status']} />;
-const BookApptPortal = () => <GenericPage title="Book Appointment" description="Appointments booked via portal." cols={['Patient', 'Doctor', 'Requested Date', 'Status']} />;
-const ViewPrescriptionsPortal = () => <GenericPage title="View Prescriptions" description="Prescriptions shared to portal." cols={['Patient', 'Prescription Date', 'View Count']} />;
-const DownloadLabReports = () => <GenericPage title="Download Lab Reports" description="Reports accessed by patients." cols={['Patient', 'Report Name', 'Download Date']} />;
-const OnlinePayment = () => <GenericPage title="Online Payment" description="Payments made via portal." cols={['Patient', 'Amount', 'Date', 'Reference ID']} />;
-const MedicalHistory = () => <GenericPage title="Medical History" description="Patient EMR access logs." cols={['Patient', 'Accessed Data', 'Date']} />;
+const PortalLogin = () => <GenericPage title="Portal Login Settings" description="Manage portal access." cols={['Patient User', 'Last Login', 'Account Status']} apiEndpoint="/api/v1/portal/login-settings" defaultData={[{ id: 1, 'Patient User': 'aarav.kumar@email.com', 'Last Login': 'Today 09:15 AM', 'Account Status': 'Active' }]} />;
+const BookApptPortal = () => <GenericPage title="Book Appointment" description="Appointments booked via portal." cols={['Patient', 'Doctor', 'Requested Date', 'Status']} apiEndpoint="/api/v1/portal/book-appointment" defaultData={[{ id: 1, Patient: 'Meera Shah', Doctor: 'Dr. Robert Chen', 'Requested Date': '2026-08-14 10:00 AM', Status: 'Confirmed' }]} />;
+const ViewPrescriptionsPortal = () => <GenericPage title="View Prescriptions" description="Prescriptions shared to portal." cols={['Patient', 'Doctor', 'Prescription Date', 'Medicines', 'Status']} apiEndpoint="/api/v1/portal/view-prescriptions" defaultData={[{ id: 1, Patient: 'Aarav Kumar', Doctor: 'Dr. Priya Nair', 'Prescription Date': '2026-08-13 10:30 AM', Medicines: 'Paracetamol 650mg', Status: 'Active' }]} />;
+const DownloadLabReports = () => <GenericPage title="Download Lab Reports" description="Reports accessed by patients with download button." cols={['Patient', 'Report Name', 'Download Date', 'Status']} apiEndpoint="/api/v1/portal/download-reports" isLabReport={true} defaultData={[{ id: 1, Patient: 'Aarav Kumar', 'Report Name': 'CBC_Blood_Report', 'Download Date': '2026-08-13 11:15 AM', Status: 'Downloaded' }]} />;
+const OnlinePayment = () => <GenericPage title="Online Payment" description="Payments made via portal." cols={['Patient', 'Amount', 'Date', 'Reference ID', 'Status']} apiEndpoint="/api/v1/portal/online-payment" defaultData={[{ id: 1, Patient: 'Aarav Kumar', Amount: '$109.50', Date: '2026-08-13 12:45 PM', 'Reference ID': 'PAY-88219', Status: 'Successful' }]} />;
+const MedicalHistory = () => <GenericPage title="Medical History" description="Patient EMR access logs." cols={['Patient', 'Accessed Data', 'Date', 'Status']} apiEndpoint="/api/v1/portal/medical-history" defaultData={[{ id: 1, Patient: 'Aarav Kumar', 'Accessed Data': 'Immunization & EMR Logs', Date: '2026-08-13 14:00 PM', Status: 'Verified' }]} />;
 
+
+
+const getRoleDefaultRoute = (role) => {
+  const r = String(role || '').toLowerCase();
+  if (r === 'doctor') return '/doctor/appointments';
+  if (r === 'receptionist' || r === 'reception') return '/reception/patient-registration';
+  if (r === 'laboratory' || r === 'lab') return '/laboratory/test-request';
+  if (r === 'nurse') return '/nurse/patient-vitals';
+  if (r === 'pharmacy') return '/pharmacy/medicine-inventory';
+  if (r === 'inpatient') return '/inpatient/room-allocation';
+  if (r === 'billing') return '/billing/consultation-charges';
+  if (r === 'portal') return '/portal/login';
+  return '/admin/dashboard';
+};
+
+const isRouteAllowed = (role, path) => {
+  const r = String(role || '').toLowerCase();
+  if (r === 'admin') return true;
+  if (r === 'doctor') return path.startsWith('/doctor');
+  if (r === 'receptionist' || r === 'reception') return path.startsWith('/reception') || path.startsWith('/billing');
+  if (r === 'laboratory' || r === 'lab') return path.startsWith('/laboratory');
+  if (r === 'nurse') return path.startsWith('/nurse');
+  if (r === 'pharmacy') return path.startsWith('/pharmacy');
+  if (r === 'inpatient') return path.startsWith('/inpatient');
+  if (r === 'portal') return path.startsWith('/portal');
+  return false;
+};
+
+const ProtectedRoute = ({ user, path, children }) => {
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  if (!isRouteAllowed(user.role, path)) {
+    return <Navigate to={getRoleDefaultRoute(user.role)} replace />;
+  }
+  return children;
+};
+
+// Main Router App Component
 function App() {
+  const [user, setUser] = useState(() => {
+    const saved = localStorage.getItem('hms_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  const handleLoginSuccess = (userData) => {
+    setUser(userData);
+    localStorage.setItem('hms_user', JSON.stringify(userData));
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem('hms_user');
+  };
+
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
+        <Route 
+          path="/login" 
+          element={
+            user ? <Navigate to={getRoleDefaultRoute(user.role)} replace /> : <Login onLoginSuccess={handleLoginSuccess} />
+          } 
+        />
+
+        <Route 
+          path="/" 
+          element={
+            user ? <Navigate to={getRoleDefaultRoute(user.role)} replace /> : <Navigate to="/login" replace />
+          } 
+        />
         
-        <Route element={<Layout />}>
+        <Route element={user ? <Layout user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />}>
           {/* 1. Admin */}
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          <Route path="/admin/users" element={<UserManagement />} />
-          <Route path="/admin/doctors" element={<DoctorManagement />} />
-          <Route path="/admin/departments" element={<DepartmentManagement />} />
-          <Route path="/admin/staff" element={<StaffManagement />} />
-          <Route path="/admin/reports" element={<ReportsAnalytics />} />
-          <Route path="/admin/settings" element={<SystemSettings />} />
+          <Route path="/admin/dashboard" element={<ProtectedRoute user={user} path="/admin/dashboard"><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/admin/users" element={<ProtectedRoute user={user} path="/admin/users"><UserManagement /></ProtectedRoute>} />
+          <Route path="/admin/doctors" element={<ProtectedRoute user={user} path="/admin/doctors"><DoctorManagement /></ProtectedRoute>} />
+          <Route path="/admin/departments" element={<ProtectedRoute user={user} path="/admin/departments"><DepartmentManagement /></ProtectedRoute>} />
+          <Route path="/admin/staff" element={<ProtectedRoute user={user} path="/admin/staff"><StaffManagement /></ProtectedRoute>} />
+          <Route path="/admin/reports" element={<ProtectedRoute user={user} path="/admin/reports"><ReportsAnalytics /></ProtectedRoute>} />
+          <Route path="/admin/settings" element={<ProtectedRoute user={user} path="/admin/settings"><SystemSettings /></ProtectedRoute>} />
+          <Route path="/admin/deleted-records" element={<ProtectedRoute user={user} path="/admin/deleted-records"><DeletedRecordsLog /></ProtectedRoute>} />
           
           {/* 2. Reception */}
-          <Route path="/reception/patient-registration" element={<PatientRegistration />} />
-          <Route path="/reception/appointment-booking" element={<AppointmentBooking />} />
-          <Route path="/reception/queue-management" element={<QueueManagement />} />
-          <Route path="/reception/op-ip-registration" element={<OPIPRegistration />} />
+          <Route path="/reception/patient-registration" element={<ProtectedRoute user={user} path="/reception/patient-registration"><PatientRegistration /></ProtectedRoute>} />
+          <Route path="/reception/appointment-booking" element={<ProtectedRoute user={user} path="/reception/appointment-booking"><AppointmentBooking /></ProtectedRoute>} />
+          <Route path="/reception/queue-management" element={<ProtectedRoute user={user} path="/reception/queue-management"><QueueManagement /></ProtectedRoute>} />
+          <Route path="/reception/op-ip-registration" element={<ProtectedRoute user={user} path="/reception/op-ip-registration"><OPIPRegistration /></ProtectedRoute>} />
           
           {/* 3. Doctor */}
-          <Route path="/doctor/appointments" element={<ViewAppointments />} />
-          <Route path="/doctor/patient-history" element={<PatientHistory />} />
-          <Route path="/doctor/diagnosis" element={<Diagnosis />} />
-          <Route path="/doctor/prescription" element={<Prescription />} />
-          <Route path="/doctor/lab-test-request" element={<LabTestRequest />} />
-          <Route path="/doctor/follow-up" element={<FollowupSchedule />} />
+          <Route path="/doctor/appointments" element={<ProtectedRoute user={user} path="/doctor/appointments"><ViewAppointments /></ProtectedRoute>} />
+          <Route path="/doctor/patient-history" element={<ProtectedRoute user={user} path="/doctor/patient-history"><PatientHistory /></ProtectedRoute>} />
+          <Route path="/doctor/diagnosis" element={<ProtectedRoute user={user} path="/doctor/diagnosis"><Diagnosis /></ProtectedRoute>} />
+          <Route path="/doctor/prescription" element={<ProtectedRoute user={user} path="/doctor/prescription"><Prescription /></ProtectedRoute>} />
+          <Route path="/doctor/lab-test-request" element={<ProtectedRoute user={user} path="/doctor/lab-test-request"><LabTestRequest /></ProtectedRoute>} />
+          <Route path="/doctor/follow-up" element={<ProtectedRoute user={user} path="/doctor/follow-up"><FollowupSchedule /></ProtectedRoute>} />
           
           {/* 4. Nurse */}
-          <Route path="/nurse/patient-vitals" element={<PatientVitals />} />
-          <Route path="/nurse/ward-management" element={<WardManagement />} />
-          <Route path="/nurse/medication-admin" element={<MedicationAdmin />} />
-          <Route path="/nurse/nursing-notes" element={<NursingNotes />} />
+          <Route path="/nurse/patient-vitals" element={<ProtectedRoute user={user} path="/nurse/patient-vitals"><PatientVitals /></ProtectedRoute>} />
+          <Route path="/nurse/ward-management" element={<ProtectedRoute user={user} path="/nurse/ward-management"><WardManagement /></ProtectedRoute>} />
+          <Route path="/nurse/medication-admin" element={<ProtectedRoute user={user} path="/nurse/medication-admin"><MedicationAdmin /></ProtectedRoute>} />
+          <Route path="/nurse/nursing-notes" element={<ProtectedRoute user={user} path="/nurse/nursing-notes"><NursingNotes /></ProtectedRoute>} />
           
           {/* 5. Laboratory */}
-          <Route path="/laboratory/test-request" element={<TestRequestLab />} />
-          <Route path="/laboratory/sample-collection" element={<SampleCollection />} />
-          <Route path="/laboratory/report-entry" element={<ReportEntry />} />
-          <Route path="/laboratory/report-upload" element={<ReportUpload />} />
+          <Route path="/laboratory/test-request" element={<ProtectedRoute user={user} path="/laboratory/test-request"><TestRequestLab /></ProtectedRoute>} />
+          <Route path="/laboratory/sample-collection" element={<ProtectedRoute user={user} path="/laboratory/sample-collection"><SampleCollection /></ProtectedRoute>} />
+          <Route path="/laboratory/report-entry" element={<ProtectedRoute user={user} path="/laboratory/report-entry"><ReportEntry /></ProtectedRoute>} />
+          <Route path="/laboratory/report-upload" element={<ProtectedRoute user={user} path="/laboratory/report-upload"><ReportUpload /></ProtectedRoute>} />
           
           {/* 6. Pharmacy */}
-          <Route path="/pharmacy/medicine-inventory" element={<MedicineInventory />} />
-          <Route path="/pharmacy/prescription-processing" element={<PrescriptionProcessing />} />
-          <Route path="/pharmacy/medicine-billing" element={<MedicineBilling />} />
-          <Route path="/pharmacy/stock-alerts" element={<StockAlerts />} />
+          <Route path="/pharmacy/medicine-inventory" element={<ProtectedRoute user={user} path="/pharmacy/medicine-inventory"><MedicineInventory /></ProtectedRoute>} />
+          <Route path="/pharmacy/prescription-processing" element={<ProtectedRoute user={user} path="/pharmacy/prescription-processing"><PrescriptionProcessing /></ProtectedRoute>} />
+          <Route path="/pharmacy/medicine-billing" element={<ProtectedRoute user={user} path="/pharmacy/medicine-billing"><MedicineBilling /></ProtectedRoute>} />
+          <Route path="/pharmacy/stock-alerts" element={<ProtectedRoute user={user} path="/pharmacy/stock-alerts"><StockAlerts /></ProtectedRoute>} />
           
           {/* 7. Inpatient */}
-          <Route path="/inpatient/room-allocation" element={<RoomAllocation />} />
-          <Route path="/inpatient/admission" element={<Admission />} />
-          <Route path="/inpatient/treatment-records" element={<TreatmentRecords />} />
-          <Route path="/inpatient/daily-progress" element={<DailyProgress />} />
-          <Route path="/inpatient/discharge-summary" element={<DischargeSummary />} />
+          <Route path="/inpatient/room-allocation" element={<ProtectedRoute user={user} path="/inpatient/room-allocation"><RoomAllocation /></ProtectedRoute>} />
+          <Route path="/inpatient/admission" element={<ProtectedRoute user={user} path="/inpatient/admission"><Admission /></ProtectedRoute>} />
+          <Route path="/inpatient/treatment-records" element={<ProtectedRoute user={user} path="/inpatient/treatment-records"><TreatmentRecords /></ProtectedRoute>} />
+          <Route path="/inpatient/daily-progress" element={<ProtectedRoute user={user} path="/inpatient/daily-progress"><DailyProgress /></ProtectedRoute>} />
+          <Route path="/inpatient/discharge-summary" element={<ProtectedRoute user={user} path="/inpatient/discharge-summary"><DischargeSummary /></ProtectedRoute>} />
           
           {/* 8. Billing */}
-          <Route path="/billing/consultation-charges" element={<ConsultationCharges />} />
-          <Route path="/billing/lab-charges" element={<LabCharges />} />
-          <Route path="/billing/pharmacy-charges" element={<PharmacyCharges />} />
-          <Route path="/billing/room-charges" element={<RoomCharges />} />
-          <Route path="/billing/payment-gateway" element={<PaymentGateway />} />
-          <Route path="/billing/invoice-generation" element={<InvoiceGeneration />} />
+          <Route path="/billing/consultation-charges" element={<ProtectedRoute user={user} path="/billing/consultation-charges"><ConsultationCharges /></ProtectedRoute>} />
+          <Route path="/billing/lab-charges" element={<ProtectedRoute user={user} path="/billing/lab-charges"><LabCharges /></ProtectedRoute>} />
+          <Route path="/billing/pharmacy-charges" element={<ProtectedRoute user={user} path="/billing/pharmacy-charges"><PharmacyCharges /></ProtectedRoute>} />
+          <Route path="/billing/room-charges" element={<ProtectedRoute user={user} path="/billing/room-charges"><RoomCharges /></ProtectedRoute>} />
+          <Route path="/billing/payment-gateway" element={<ProtectedRoute user={user} path="/billing/payment-gateway"><PaymentGateway /></ProtectedRoute>} />
+          <Route path="/billing/invoice-generation" element={<ProtectedRoute user={user} path="/billing/invoice-generation"><InvoiceGeneration /></ProtectedRoute>} />
           
           {/* 9. Portal */}
-          <Route path="/portal/login" element={<PortalLogin />} />
-          <Route path="/portal/book-appointment" element={<BookApptPortal />} />
-          <Route path="/portal/view-prescriptions" element={<ViewPrescriptionsPortal />} />
-          <Route path="/portal/download-reports" element={<DownloadLabReports />} />
-          <Route path="/portal/online-payment" element={<OnlinePayment />} />
-          <Route path="/portal/medical-history" element={<MedicalHistory />} />
-
+          <Route path="/portal/login" element={<ProtectedRoute user={user} path="/portal/login"><PortalLogin /></ProtectedRoute>} />
+          <Route path="/portal/book-appointment" element={<ProtectedRoute user={user} path="/portal/book-appointment"><BookApptPortal /></ProtectedRoute>} />
+          <Route path="/portal/view-prescriptions" element={<ProtectedRoute user={user} path="/portal/view-prescriptions"><ViewPrescriptionsPortal /></ProtectedRoute>} />
+          <Route path="/portal/download-reports" element={<ProtectedRoute user={user} path="/portal/download-reports"><DownloadLabReports /></ProtectedRoute>} />
+          <Route path="/portal/online-payment" element={<ProtectedRoute user={user} path="/portal/online-payment"><OnlinePayment /></ProtectedRoute>} />
+          <Route path="/portal/medical-history" element={<ProtectedRoute user={user} path="/portal/medical-history"><MedicalHistory /></ProtectedRoute>} />
         </Route>
+
+        {/* Fallback Catch-all Route */}
+        <Route path="*" element={user ? <Navigate to={getRoleDefaultRoute(user.role)} replace /> : <Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
   );
 }
 
 export default App;
+

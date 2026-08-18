@@ -1,19 +1,49 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
-from hms_backend.app.core.database import Base, engine
-from hms_backend.app.models.appointment import Appointment
-from hms_backend.app.models.patient import Patient
-from hms_backend.app.models.user import User
-from hms_backend.app.models.department import Department
-from hms_backend.app.models.consultation import Diagnosis, Prescription, LabTestRequest
+from hms_backend.app.core.database import Base, engine, SessionLocal
+from hms_backend.app.core.seeder import seed_database
+from hms_backend.app.api.v1.router import api_v1_router
+
+# Import models to ensure they are registered with Base.metadata
+import hms_backend.app.models.user
+import hms_backend.app.models.patient
+import hms_backend.app.models.doctor
+import hms_backend.app.models.staff
+import hms_backend.app.models.department
+import hms_backend.app.models.appointment
+import hms_backend.app.models.opd
+import hms_backend.app.models.ipd
+import hms_backend.app.models.prescription
+import hms_backend.app.models.lab
+import hms_backend.app.models.pharmacy
+import hms_backend.app.models.billing
+import hms_backend.app.models.ambulance
+import hms_backend.app.models.audit
+import hms_backend.app.models.generic
+
+# Ensure all tables are created in SQLite database
+Base.metadata.create_all(bind=engine)
 
 from hms_backend.app.routers import (
     admin, reception, doctor, nurse, laboratory, pharmacy, inpatient, billing, portal
 )
 
-app = FastAPI(title="Hospital Management API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        seed_database(db)
+    finally:
+        db.close()
+    yield
+
+
+app = FastAPI(title="Hospital Management API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -23,6 +53,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Register v1 router under /api
+app.include_router(api_v1_router, prefix="/api")
+
+# Register direct module routers
 app.include_router(admin.router)
 app.include_router(reception.router)
 app.include_router(doctor.router)
@@ -36,7 +70,11 @@ app.include_router(portal.router)
 
 @app.get("/")
 def read_root():
-    return {"message": "Hospital Management API is running"}
+    return {
+        "message": "Hospital Management API is running",
+        "docs_url": "/docs",
+        "version": "1.0.0"
+    }
 
 
 @app.get("/health")
@@ -47,10 +85,7 @@ def health_check():
 
 
 @app.post("/api/auth/login")
-def login():
+def legacy_login():
     return {"token": "demo-token", "role": "admin", "name": "Demo Admin"}
 
 
-@app.on_event("startup")
-def startup():
-    Base.metadata.create_all(bind=engine)

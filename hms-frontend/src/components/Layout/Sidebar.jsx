@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { 
   ShieldCheck, 
@@ -29,6 +29,7 @@ const MODULES = [
       { title: 'Staff Management', path: '/admin/staff' },
       { title: 'Reports & Analytics', path: '/admin/reports' },
       { title: 'System Settings', path: '/admin/settings' },
+      { title: 'Deleted Records Log', path: '/admin/deleted-records' },
     ]
   },
   {
@@ -136,12 +137,41 @@ const MODULES = [
   }
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ isOpenMobile, onCloseMobile, userRole: userRoleProp }) {
   const location = useLocation();
+  const savedUserStr = localStorage.getItem('hms_user');
+  const activeRole = userRoleProp || (savedUserStr ? JSON.parse(savedUserStr).role : 'admin');
+
+  const visibleModules = React.useMemo(() => {
+    const role = String(activeRole || '').toLowerCase();
+    if (role === 'admin') return MODULES;
+    if (role === 'doctor') return MODULES.filter(m => m.id === 'doctor');
+    if (role === 'receptionist' || role === 'reception') {
+      return MODULES.filter(m => m.id === 'reception' || m.id === 'billing');
+    }
+    if (role === 'laboratory' || role === 'lab') {
+      return MODULES.filter(m => m.id === 'laboratory');
+    }
+    if (role === 'nurse') return MODULES.filter(m => m.id === 'nurse');
+    if (role === 'pharmacy') return MODULES.filter(m => m.id === 'pharmacy');
+    if (role === 'inpatient') return MODULES.filter(m => m.id === 'inpatient');
+    if (role === 'portal') return MODULES.filter(m => m.id === 'portal');
+    return MODULES;
+  }, [activeRole]);
+
   const [openModule, setOpenModule] = useState(() => {
-    const currentModule = MODULES.find(m => location.pathname.startsWith(`/${m.id}`));
-    return currentModule ? currentModule.id : 'admin';
+    const currentModule = visibleModules.find(m => location.pathname.startsWith(`/${m.id}`));
+    return currentModule ? currentModule.id : (visibleModules[0]?.id || 'admin');
   });
+
+  useEffect(() => {
+    const currentModule = visibleModules.find(m => location.pathname.startsWith(`/${m.id}`));
+    if (currentModule) {
+      setOpenModule(currentModule.id);
+    } else if (visibleModules.length > 0 && !visibleModules.some(m => m.id === openModule)) {
+      setOpenModule(visibleModules[0].id);
+    }
+  }, [location.pathname, visibleModules]);
 
   const toggleModule = (id) => {
     setOpenModule(openModule === id ? null : id);
@@ -149,17 +179,20 @@ export default function Sidebar() {
 
   return (
     <aside className="w-72 bg-white border-r border-slate-200 h-full flex flex-col shadow-sm">
-      <div className="h-16 flex items-center px-6 border-b border-slate-200 shrink-0">
+      <div className="h-16 flex items-center px-6 border-b border-slate-200 shrink-0 justify-between">
         <h1 className="text-xl font-bold text-slate-800 flex items-center">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center mr-3 text-white">
+          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center mr-3 text-white shadow-sm">
             <ShieldCheck className="w-5 h-5" />
           </div>
           HMS Portal
         </h1>
+        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+          {activeRole}
+        </span>
       </div>
       
       <nav className="flex-1 overflow-y-auto p-4 space-y-2">
-        {MODULES.map((module) => {
+        {visibleModules.map((module) => {
           const isOpen = openModule === module.id;
           const isActive = location.pathname.startsWith(`/${module.id}`);
           const Icon = module.icon;
@@ -170,6 +203,7 @@ export default function Sidebar() {
                 onClick={() => toggleModule(module.id)}
                 className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-xl transition-colors ${
                   isActive || isOpen
+
                     ? 'bg-slate-50 text-slate-900 border border-slate-200 shadow-sm' 
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 border border-transparent'
                 }`}

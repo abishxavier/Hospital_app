@@ -1,6 +1,6 @@
-from sqlalchemy import Boolean, Column, Integer, String, ForeignKey
+from sqlalchemy import Boolean, Column, Integer, String, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
-
+from datetime import datetime, timezone
 from hms_backend.app.core.database import Base
 
 
@@ -14,5 +14,6 @@ class User(Base):
     role = Column(String(50), nullable=False, default="reception")
     is_active = Column(Boolean, default=True)
     department_id = Column(Integer, ForeignKey("departments.id"), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     department = relationship("Department", back_populates="users")
