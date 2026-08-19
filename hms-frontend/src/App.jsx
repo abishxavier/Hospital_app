@@ -1086,104 +1086,114 @@ Confidential Medical Report. Hospital Seal Applied.
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
       {/* Modal Overlay */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md animate-in zoom-in-95 duration-200 overflow-hidden">
-            <div className="flex justify-between items-center p-6 border-b border-slate-100 bg-slate-50/50">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl my-auto animate-in zoom-in-95 duration-200 overflow-hidden border border-slate-100 flex flex-col max-h-[90vh]">
+            {/* Modal Header */}
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/80 shrink-0">
               <div>
-                <h2 className="text-xl font-bold text-slate-800">Add New Record</h2>
+                <h2 className="text-lg font-bold text-slate-900">Add New Record</h2>
                 <p className="text-xs text-slate-500 mt-0.5">{title}</p>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1">
+              <button 
+                type="button"
+                onClick={() => setIsModalOpen(false)} 
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-200/60 transition-colors"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
             
-            <form onSubmit={handleCreateNew}>
+            {/* Modal Body & Form */}
+            <form onSubmit={handleCreateNew} className="flex flex-col flex-1 overflow-hidden">
               {dateError && (
-                <div className="mx-6 mt-4 p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-semibold flex items-center animate-in fade-in">
+                <div className="mx-6 mt-4 p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-semibold flex items-center animate-in fade-in shrink-0">
                   <AlertCircle className="w-4 h-4 mr-2 text-rose-600 shrink-0" />
                   {dateError}
                 </div>
               )}
 
-              <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-                {cols.map((col, idx) => {
-                  const colLower = col.toLowerCase();
-                  const isDoctor = colLower.includes('doctor');
-                  const isMedicine = colLower.includes('medicine') || colLower.includes('tablet');
-                  const isStatus = colLower.includes('status') || colLower.includes('availability');
-                  const isPain = colLower.includes('pain');
-                  const isDateTime = isDateTimeField(col);
+              <div className="p-6 overflow-y-auto flex-1 max-h-[calc(90vh-140px)] scrollbar-thin">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {cols.map((col, idx) => {
+                    const colLower = col.toLowerCase();
+                    const isDoctor = colLower.includes('doctor');
+                    const isMedicine = colLower.includes('medicine') || colLower.includes('tablet');
+                    const isStatus = colLower.includes('status') || colLower.includes('availability');
+                    const isPain = colLower.includes('pain');
+                    const isDateTime = isDateTimeField(col);
 
-                  return (
-                    <div key={idx} className={isPain ? "col-span-full" : ""}>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">{col}</label>
-                      {isPain ? (
-                        <WongBakerPainScaleSelector
-                          value={formData[col] || '3/10'}
-                          onChange={(val) => handleInputChange(col, val)}
-                        />
-                      ) : isDoctor ? (
-                        <select
-                          value={formData[col] || DOCTOR_OPTIONS[0]}
-                          onChange={(e) => handleInputChange(col, e.target.value)}
-                          className="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm bg-white cursor-pointer font-medium text-slate-800"
-                        >
-                          {DOCTOR_OPTIONS.map((doc, dIdx) => (
-                            <option key={dIdx} value={doc}>{doc}</option>
-                          ))}
-                        </select>
-                      ) : isMedicine ? (
-                        <select
-                          value={formData[col] || MEDICINE_OPTIONS[0]}
-                          onChange={(e) => handleInputChange(col, e.target.value)}
-                          className="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm bg-white cursor-pointer font-medium text-slate-800"
-                        >
-                          {MEDICINE_OPTIONS.map((med, mIdx) => (
-                            <option key={mIdx} value={med}>{med}</option>
-                          ))}
-                        </select>
-                      ) : isStatus ? (
-                        <select
-                          value={formData[col] || STATUS_OPTIONS[0]}
-                          onChange={(e) => handleInputChange(col, e.target.value)}
-                          className="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm bg-white cursor-pointer font-medium text-slate-800"
-                        >
-                          {STATUS_OPTIONS.map((st, sIdx) => (
-                            <option key={sIdx} value={st}>{st}</option>
-                          ))}
-                        </select>
-                      ) : isDateTime ? (
-                        <DateTimePicker
-                          value={formData[col] || ''}
-                          onChange={(val) => handleInputChange(col, val)}
-                          placeholder={`Select ${col}`}
-                        />
-                      ) : (
-                        <input
-                          type="text"
-                          required={idx === 0}
-                          value={formData[col] || ''}
-                          onChange={(e) => handleInputChange(col, e.target.value)}
-                          className="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm font-medium text-slate-800"
-                          placeholder={`Enter ${col.toLowerCase()}`}
-                        />
-                      )}
-                    </div>
-                  );
-                })}
+                    return (
+                      <div key={idx} className={isPain ? "col-span-full" : "col-span-1"}>
+                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1.5">{col}</label>
+                        {isPain ? (
+                          <WongBakerPainScaleSelector
+                            value={formData[col] || '3/10'}
+                            onChange={(val) => handleInputChange(col, val)}
+                          />
+                        ) : isDoctor ? (
+                          <select
+                            value={formData[col] || DOCTOR_OPTIONS[0]}
+                            onChange={(e) => handleInputChange(col, e.target.value)}
+                            className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm bg-white cursor-pointer font-medium text-slate-800 shadow-sm"
+                          >
+                            {DOCTOR_OPTIONS.map((doc, dIdx) => (
+                              <option key={dIdx} value={doc}>{doc}</option>
+                            ))}
+                          </select>
+                        ) : isMedicine ? (
+                          <select
+                            value={formData[col] || MEDICINE_OPTIONS[0]}
+                            onChange={(e) => handleInputChange(col, e.target.value)}
+                            className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm bg-white cursor-pointer font-medium text-slate-800 shadow-sm"
+                          >
+                            {MEDICINE_OPTIONS.map((med, mIdx) => (
+                              <option key={mIdx} value={med}>{med}</option>
+                            ))}
+                          </select>
+                        ) : isStatus ? (
+                          <select
+                            value={formData[col] || STATUS_OPTIONS[0]}
+                            onChange={(e) => handleInputChange(col, e.target.value)}
+                            className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm bg-white cursor-pointer font-medium text-slate-800 shadow-sm"
+                          >
+                            {STATUS_OPTIONS.map((st, sIdx) => (
+                              <option key={sIdx} value={st}>{st}</option>
+                            ))}
+                          </select>
+                        ) : isDateTime ? (
+                          <DateTimePicker
+                            value={formData[col] || ''}
+                            onChange={(val) => handleInputChange(col, val)}
+                            placeholder={`Select ${col}`}
+                          />
+                        ) : (
+                          <input
+                            type="text"
+                            required={idx === 0}
+                            value={formData[col] || ''}
+                            onChange={(e) => handleInputChange(col, e.target.value)}
+                            className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm font-medium text-slate-800 shadow-sm"
+                            placeholder={`Enter ${col.toLowerCase()}`}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="p-4 border-t border-slate-100 flex justify-end space-x-3 bg-slate-50 rounded-b-2xl">
+
+              {/* Modal Footer */}
+              <div className="px-6 py-4 border-t border-slate-100 flex justify-end space-x-3 bg-slate-50/80 rounded-b-2xl shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl"
+                  className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-200/60 rounded-xl transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm shadow-blue-200"
+                  className="px-6 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-200 transition-all hover:scale-[1.02]"
                 >
                   Save Record
                 </button>
@@ -1191,7 +1201,6 @@ Confidential Medical Report. Hospital Seal Applied.
             </form>
           </div>
         </div>
-
       )}
 
 
