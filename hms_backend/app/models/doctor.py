@@ -7,6 +7,7 @@ class Doctor(Base):
     __tablename__ = "doctors"
 
     id = Column(Integer, primary_key=True, index=True)
+    employee_id = Column(String(50), unique=True, index=True, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     full_name = Column(String(120), nullable=False)
     specialization = Column(String(100), nullable=False)
