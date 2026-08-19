@@ -1086,18 +1086,24 @@ Confidential Medical Report. Hospital Seal Applied.
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
       {/* Modal Overlay */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl my-auto animate-in zoom-in-95 duration-200 overflow-hidden border border-slate-100 flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-5 md:p-8 overflow-y-auto">
+          <div className="bg-white rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-4xl my-auto animate-in zoom-in-95 duration-200 border border-slate-100 flex flex-col max-h-[92vh] overflow-hidden">
             {/* Modal Header */}
-            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/80 shrink-0">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">Add New Record</h2>
-                <p className="text-xs text-slate-500 mt-0.5">{title}</p>
+            <div className="flex justify-between items-center px-6 py-4 md:px-8 md:py-5 border-b border-slate-200 bg-slate-50/90 shrink-0">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 bg-blue-100/70 rounded-xl text-blue-700 shrink-0">
+                  <Plus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg md:text-xl font-bold text-slate-900">Add New Entry</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">{title} • Fill form details below</p>
+                </div>
               </div>
               <button 
                 type="button"
                 onClick={() => setIsModalOpen(false)} 
-                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-200/60 transition-colors"
+                className="text-slate-400 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-200/70 transition-colors"
+                title="Close Modal"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1106,14 +1112,14 @@ Confidential Medical Report. Hospital Seal Applied.
             {/* Modal Body & Form */}
             <form onSubmit={handleCreateNew} className="flex flex-col flex-1 overflow-hidden">
               {dateError && (
-                <div className="mx-6 mt-4 p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-semibold flex items-center animate-in fade-in shrink-0">
+                <div className="mx-6 mt-4 md:mx-8 p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-semibold flex items-center animate-in fade-in shrink-0">
                   <AlertCircle className="w-4 h-4 mr-2 text-rose-600 shrink-0" />
                   {dateError}
                 </div>
               )}
 
-              <div className="p-6 overflow-y-auto flex-1 max-h-[calc(90vh-140px)] scrollbar-thin">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-6 md:p-8 overflow-y-auto flex-1 max-h-[calc(92vh-150px)] scrollbar-thin">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                   {cols.map((col, idx) => {
                     const colLower = col.toLowerCase();
                     const isDoctor = colLower.includes('doctor');
@@ -1134,7 +1140,7 @@ Confidential Medical Report. Hospital Seal Applied.
                           <select
                             value={formData[col] || DOCTOR_OPTIONS[0]}
                             onChange={(e) => handleInputChange(col, e.target.value)}
-                            className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm bg-white cursor-pointer font-medium text-slate-800 shadow-sm"
+                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm bg-white cursor-pointer font-medium text-slate-800 shadow-sm"
                           >
                             {DOCTOR_OPTIONS.map((doc, dIdx) => (
                               <option key={dIdx} value={doc}>{doc}</option>
@@ -1144,7 +1150,7 @@ Confidential Medical Report. Hospital Seal Applied.
                           <select
                             value={formData[col] || MEDICINE_OPTIONS[0]}
                             onChange={(e) => handleInputChange(col, e.target.value)}
-                            className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm bg-white cursor-pointer font-medium text-slate-800 shadow-sm"
+                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm bg-white cursor-pointer font-medium text-slate-800 shadow-sm"
                           >
                             {MEDICINE_OPTIONS.map((med, mIdx) => (
                               <option key={mIdx} value={med}>{med}</option>
@@ -1154,7 +1160,7 @@ Confidential Medical Report. Hospital Seal Applied.
                           <select
                             value={formData[col] || STATUS_OPTIONS[0]}
                             onChange={(e) => handleInputChange(col, e.target.value)}
-                            className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm bg-white cursor-pointer font-medium text-slate-800 shadow-sm"
+                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm bg-white cursor-pointer font-medium text-slate-800 shadow-sm"
                           >
                             {STATUS_OPTIONS.map((st, sIdx) => (
                               <option key={sIdx} value={st}>{st}</option>
@@ -1172,7 +1178,7 @@ Confidential Medical Report. Hospital Seal Applied.
                             required={idx === 0}
                             value={formData[col] || ''}
                             onChange={(e) => handleInputChange(col, e.target.value)}
-                            className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm font-medium text-slate-800 shadow-sm"
+                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm font-medium text-slate-800 shadow-sm"
                             placeholder={`Enter ${col.toLowerCase()}`}
                           />
                         )}
@@ -1183,20 +1189,23 @@ Confidential Medical Report. Hospital Seal Applied.
               </div>
 
               {/* Modal Footer */}
-              <div className="px-6 py-4 border-t border-slate-100 flex justify-end space-x-3 bg-slate-50/80 rounded-b-2xl shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-200/60 rounded-xl transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-200 transition-all hover:scale-[1.02]"
-                >
-                  Save Record
-                </button>
+              <div className="px-6 py-4 md:px-8 md:py-4 border-t border-slate-200 flex items-center justify-between bg-slate-50/90 shrink-0">
+                <span className="text-xs text-slate-400 font-medium hidden sm:inline">Press Esc or click Cancel to close modal</span>
+                <div className="flex items-center space-x-3 ml-auto">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-200/60 rounded-xl transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-7 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-200 transition-all hover:scale-[1.02]"
+                  >
+                    Save Record
+                  </button>
+                </div>
               </div>
             </form>
           </div>
