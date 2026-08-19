@@ -8,12 +8,10 @@ import AdminDashboard from './pages/Admin/Dashboard';
 import Login from './pages/Auth/Login';
 
 const DOCTOR_OPTIONS = [
-  'Dr. Priya Nair',
-  'Dr. Robert Chen',
-  'Dr. Anita Desai',
-  'Dr. Vikram Malhotra',
-  'Dr. Sarah Johnson',
-  'Dr. Kavita Verma'
+  'Dr. Madhavan',
+  'Dr. S. Karthikeyan',
+  'Dr. Murugan Jeyaraman',
+  'Dr. Raj Kanna'
 ];
 
 const MEDICINE_OPTIONS = [

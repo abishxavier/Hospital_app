@@ -23,7 +23,7 @@ def test_unique_employee_id_constraint(setup_db):
     db = setup_db
     # Attempt duplicate employee_id insertion
     duplicate_user = User(
-        employee_id="EMP-1001", # Existing Doctor Priya Nair
+        employee_id="EMP-1001", # Existing Doctor Dr. Madhavan
         full_name="Duplicate Doctor",
         email="duplicate.doc@hospital.org",
         password_hash=hash_password("pass123"),
@@ -39,7 +39,7 @@ def test_unique_patient_id_constraint(setup_db):
     db = setup_db
     # Attempt duplicate patient_id insertion
     duplicate_patient = Patient(
-        patient_id="PAT-2001", # Existing Patient Aarav Kumar
+        patient_id="PAT-2001", # Existing Patient Aarav
         patient_code="PAT-2001",
         full_name="Duplicate Patient",
         phone="+91 90000 00000",
