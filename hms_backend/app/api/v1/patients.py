@@ -15,8 +15,10 @@ def list_patients(db: Session = Depends(get_db)):
     for p in patients:
         result.append({
             "id": p.id,
-            "Patient ID": p.patient_code or f"PAT-{p.id:04d}",
+            "Patient ID": p.patient_id or p.patient_code or f"PAT-{p.id:04d}",
             "Name": p.full_name,
+            "Disease": p.disease or "General Consultation",
+            "Pain Level": f"{p.pain_scale or 3}/10",
             "Phone": p.phone,
             "Registered Date": str(p.created_at.date()) if p.created_at else "2026-08-13",
             "Status": p.status or "Active"
@@ -29,17 +31,22 @@ def register_patient(payload: dict, db: Session = Depends(get_db)):
     name = payload.get("Name") or payload.get("full_name") or "New Patient"
     phone = payload.get("Phone") or payload.get("phone") or "+91 99999 00000"
     email = payload.get("Email") or payload.get("email")
-    code = payload.get("Patient ID") or payload.get("patient_code") or f"PAT-{1000 + db.query(Patient).count() + 1}"
-    
-    existing = db.query(Patient).filter(Patient.patient_code == code).first()
+    pid = payload.get("Patient ID") or payload.get("patient_id") or payload.get("patient_code") or f"PAT-{2000 + db.query(Patient).count() + 1}"
+    disease = payload.get("Disease") or payload.get("disease") or "Diabetes"
+    pain = int(payload.get("Pain Level", "3").split("/")[0]) if payload.get("Pain Level") else 3
+
+    existing = db.query(Patient).filter((Patient.patient_id == pid) | (Patient.patient_code == pid)).first()
     if existing:
-        code = f"PAT-{1000 + db.query(Patient).count() + int(datetime.now().timestamp()) % 10000}"
+        pid = f"PAT-{2000 + db.query(Patient).count() + 100}"
 
     patient = Patient(
-        patient_code=code,
+        patient_id=pid,
+        patient_code=pid,
         full_name=name,
         phone=phone,
         email=email,
+        disease=disease,
+        pain_scale=pain,
         status="Active"
     )
     db.add(patient)
@@ -47,8 +54,10 @@ def register_patient(payload: dict, db: Session = Depends(get_db)):
     db.refresh(patient)
     return {
         "id": patient.id,
-        "Patient ID": patient.patient_code,
+        "Patient ID": patient.patient_id,
         "Name": patient.full_name,
+        "Disease": patient.disease,
+        "Pain Level": f"{patient.pain_scale}/10",
         "Phone": patient.phone,
         "Registered Date": str(patient.created_at.date()) if patient.created_at else "2026-08-13",
         "Status": patient.status

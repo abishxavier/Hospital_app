@@ -47,6 +47,7 @@ def get_users(db: Session = Depends(get_db)):
     for u in users:
         res.append({
             "id": u.id,
+            "Employee ID": u.employee_id or f"EMP-{u.id+1000}",
             "Name": u.full_name,
             "Role": u.role,
             "Email": u.email,
@@ -56,28 +57,52 @@ def get_users(db: Session = Depends(get_db)):
 
 
 @router.post("/users")
+@router.post("/employees")
 def create_user(payload: dict, db: Session = Depends(get_db)):
     name = payload.get("Name") or payload.get("full_name") or "New User"
     email = payload.get("Email") or payload.get("email") or f"user{db.query(User).count()+1}@hospital.com"
-    role = payload.get("Role") or payload.get("role") or "staff"
+    role = String(payload.get("Role") or payload.get("role") or "staff").lower()
+    raw_password = payload.get("password") or "user123"
+
+    emp_id = payload.get("Employee ID") or payload.get("employee_id") or f"EMP-{1000 + db.query(User).count() + 1}"
     
-    user = User(
-        full_name=name,
-        email=email,
-        password_hash=hash_password("user123"),
-        role=role,
-        is_active=True
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return {
-        "id": user.id,
-        "Name": user.full_name,
-        "Role": user.role,
-        "Email": user.email,
-        "Status": "Active"
-    }
+    # Check employee_id uniqueness
+    existing = db.query(User).filter(User.employee_id == emp_id).first()
+    if existing:
+        emp_id = f"EMP-{1000 + db.query(User).count() + 100}"
+
+    try:
+        user = User(
+            employee_id=emp_id,
+            full_name=name,
+            email=email,
+            password_hash=hash_password(raw_password),
+            role=role,
+            is_active=True
+        )
+        db.add(user)
+
+        if role == "doctor":
+            doc = Doctor(employee_id=emp_id, full_name=name, specialization="General Medicine", phone="+91 98765 00000", availability="Available")
+            db.add(doc)
+        else:
+            st = Staff(employee_id=emp_id, full_name=name, role=role.capitalize(), shift="Morning Shift", status="Active")
+            db.add(st)
+
+        db.commit()
+        db.refresh(user)
+
+        return {
+            "id": user.id,
+            "Employee ID": user.employee_id,
+            "Name": user.full_name,
+            "Role": user.role,
+            "Email": user.email,
+            "Status": "Active"
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Transaction Rollback: {str(e)}")
 
 
 @router.delete("/users/{user_id}")

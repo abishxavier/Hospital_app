@@ -8,6 +8,7 @@ class Patient(Base):
     __tablename__ = "patients"
 
     id = Column(Integer, primary_key=True, index=True)
+    patient_id = Column(String(50), unique=True, index=True, nullable=True)
     patient_code = Column(String(50), unique=True, index=True, nullable=True)
     full_name = Column(String(120), nullable=False)
     phone = Column(String(20), nullable=False)
@@ -16,6 +17,8 @@ class Patient(Base):
     gender = Column(String(20), nullable=True)
     blood_group = Column(String(10), nullable=True)
     address = Column(String(255), nullable=True)
+    disease = Column(String(100), nullable=True)
+    pain_scale = Column(Integer, nullable=True)
     emergency_contact_name = Column(String(120), nullable=True)
     emergency_contact_phone = Column(String(20), nullable=True)
     medical_history_summary = Column(Text, nullable=True)
