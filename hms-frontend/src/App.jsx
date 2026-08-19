@@ -58,6 +58,137 @@ const StatusBadge = ({ status }) => {
   );
 };
 
+// Pain Scale Info Helper (Wong-Baker & Numerical 0-10 Scale)
+const getPainLevelInfo = (val) => {
+  let score = 3;
+  if (typeof val === 'number') {
+    score = val;
+  } else if (val) {
+    const match = String(val).match(/\d+/);
+    score = match ? parseInt(match[0], 10) : 3;
+  }
+  if (score > 10) score = 10;
+  if (score < 0) score = 0;
+
+  if (score === 0) {
+    return { score, emoji: '😊', title: 'No pain', desc: 'No pain felt', bg: 'bg-emerald-50 text-emerald-800 border-emerald-300' };
+  } else if (score <= 2) {
+    return { score, emoji: '🙂', title: 'Discomforting', desc: 'Very mild pain', bg: 'bg-lime-50 text-lime-800 border-lime-300' };
+  } else if (score <= 4) {
+    return { score, emoji: '😐', title: 'Distressing', desc: 'Tolerable pain', bg: 'bg-amber-50 text-amber-900 border-amber-300' };
+  } else if (score <= 6) {
+    return { score, emoji: '🙁', title: 'Intense', desc: 'Very distressing', bg: 'bg-orange-50 text-orange-900 border-orange-300' };
+  } else if (score <= 8) {
+    return { score, emoji: '😣', title: 'Utterly horrible', desc: 'Very intense', bg: 'bg-rose-50 text-rose-900 border-rose-300' };
+  } else {
+    return { score, emoji: '😭', title: 'Unimaginable unspeakable', desc: 'Excruciating unbearable', bg: 'bg-red-100 text-red-950 border-red-400 font-extrabold animate-pulse' };
+  }
+};
+
+const PainScaleBadge = ({ val }) => {
+  const info = getPainLevelInfo(val);
+  return (
+    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${info.bg} space-x-1.5 shadow-sm`}>
+      <span className="text-sm">{info.emoji}</span>
+      <span className="font-bold">{info.score}/10</span>
+      <span className="text-[11px] opacity-85 font-medium hidden sm:inline">• {info.title}</span>
+    </span>
+  );
+};
+
+// Interactive Wong-Baker Visual Pain Scale Selector Component
+const WongBakerPainScaleSelector = ({ value, onChange }) => {
+  const info = getPainLevelInfo(value);
+  const currentScore = info.score;
+
+  const faces = [
+    { val: 0, emoji: '😊', topLabel: 'No pain', bottomLabel: 'No pain', color: 'border-emerald-500 text-emerald-600 bg-emerald-50' },
+    { val: 2, emoji: '🙂', topLabel: 'Discomforting', bottomLabel: 'Very mild', color: 'border-lime-500 text-lime-600 bg-lime-50' },
+    { val: 4, emoji: '😐', topLabel: 'Distressing', bottomLabel: 'Tolerable', color: 'border-amber-500 text-amber-600 bg-amber-50' },
+    { val: 6, emoji: '🙁', topLabel: 'Intense', bottomLabel: 'Very distressing', color: 'border-orange-500 text-orange-600 bg-orange-50' },
+    { val: 8, emoji: '😣', topLabel: 'Utterly horrible', bottomLabel: 'Very intense', color: 'border-rose-500 text-rose-600 bg-rose-50' },
+    { val: 10, emoji: '😭', topLabel: 'Unimaginable', bottomLabel: 'Excruciating', color: 'border-red-600 text-red-700 bg-red-50' }
+  ];
+
+  return (
+    <div className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
+      {/* Header Info */}
+      <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+        <div className="flex items-center space-x-2">
+          <span className="text-2xl">{info.emoji}</span>
+          <div>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Wong-Baker Pain Scale Visual Chart</h4>
+            <p className="text-sm font-bold text-slate-800">{info.score}/10 — {info.title}</p>
+          </div>
+        </div>
+        <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${info.bg}`}>
+          {info.desc}
+        </span>
+      </div>
+
+      {/* Faces Grid */}
+      <div className="grid grid-cols-6 gap-1.5 text-center">
+        {faces.map((f, fIdx) => {
+          const isSelected = (f.val === 0 && currentScore === 0) ||
+            (f.val === 2 && currentScore >= 1 && currentScore <= 2) ||
+            (f.val === 4 && currentScore >= 3 && currentScore <= 4) ||
+            (f.val === 6 && currentScore >= 5 && currentScore <= 6) ||
+            (f.val === 8 && currentScore >= 7 && currentScore <= 8) ||
+            (f.val === 10 && currentScore >= 9 && currentScore <= 10);
+
+          return (
+            <button
+              key={fIdx}
+              type="button"
+              onClick={() => onChange(`${f.val}/10`)}
+              className={`flex flex-col items-center p-2 rounded-xl border transition-all ${
+                isSelected
+                  ? `${f.color} ring-2 ring-blue-500 shadow-md scale-105 font-bold`
+                  : 'border-slate-200 bg-white hover:bg-slate-100/80 text-slate-600'
+              }`}
+            >
+              <span className="text-xl sm:text-2xl mb-1">{f.emoji}</span>
+              <span className="text-[10px] font-bold leading-tight hidden sm:block">{f.topLabel}</span>
+              <span className="text-[9px] text-slate-400 mt-0.5">{f.val}/10</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Numerical Slider 0 to 10 */}
+      <div className="space-y-1 pt-1">
+        <div className="flex justify-between items-center text-xs font-bold text-slate-600 px-1">
+          <span>0 (No Pain)</span>
+          <span className="text-blue-600 font-extrabold text-sm">Selected Score: {currentScore}/10</span>
+          <span>10 (Excruciating)</span>
+        </div>
+        <input
+          type="range"
+          min="0"
+          max="10"
+          value={currentScore}
+          onChange={(e) => onChange(`${e.target.value}/10`)}
+          className="w-full h-2.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+        />
+        <div className="flex justify-between px-0.5 text-[10px] font-semibold text-slate-400">
+          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+            <button
+              key={num}
+              type="button"
+              onClick={() => onChange(`${num}/10`)}
+              className={`w-5 h-5 rounded-full flex items-center justify-center transition-colors ${
+                currentScore === num ? 'bg-blue-600 text-white font-bold' : 'hover:bg-slate-200'
+              }`}
+            >
+              {num}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const isDateTimeField = (col) => {
   const c = col.toLowerCase();
   return (
@@ -981,12 +1112,18 @@ Confidential Medical Report. Hospital Seal Applied.
                   const isDoctor = colLower.includes('doctor');
                   const isMedicine = colLower.includes('medicine') || colLower.includes('tablet');
                   const isStatus = colLower.includes('status') || colLower.includes('availability');
+                  const isPain = colLower.includes('pain');
                   const isDateTime = isDateTimeField(col);
 
                   return (
-                    <div key={idx}>
+                    <div key={idx} className={isPain ? "col-span-full" : ""}>
                       <label className="block text-sm font-medium text-slate-700 mb-1">{col}</label>
-                      {isDoctor ? (
+                      {isPain ? (
+                        <WongBakerPainScaleSelector
+                          value={formData[col] || '3/10'}
+                          onChange={(val) => handleInputChange(col, val)}
+                        />
+                      ) : isDoctor ? (
                         <select
                           value={formData[col] || DOCTOR_OPTIONS[0]}
                           onChange={(e) => handleInputChange(col, e.target.value)}
@@ -1130,11 +1267,14 @@ Confidential Medical Report. Hospital Seal Applied.
                     {cols.map((col, colIdx) => {
                       const val = row[col] || Object.values(row)[colIdx + 1] || 'N/A';
                       const isStatusCol = col.toLowerCase().includes('status') || col.toLowerCase().includes('availability');
+                      const isPainCol = col.toLowerCase().includes('pain');
 
                       return (
                         <td key={colIdx} className="px-6 py-4 text-slate-700">
                           {colIdx === 0 ? (
                             <span className="font-semibold text-slate-900">{val}</span>
+                          ) : isPainCol ? (
+                            <PainScaleBadge val={val} />
                           ) : isStatusCol ? (
                             <StatusBadge status={val} />
                           ) : (
