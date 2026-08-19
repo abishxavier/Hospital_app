@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Plus, Search, Filter, Trash2, Download, Printer, RefreshCw, ChevronLeft, ChevronRight, X, FileText, AlertCircle, Calendar, Clock, CheckCircle2 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import Layout from './components/Layout/Layout';
 import AdminDashboard from './pages/Admin/Dashboard';
 import Login from './pages/Auth/Login';
@@ -682,68 +684,272 @@ Confidential Medical Report. Hospital Seal Applied.
     URL.revokeObjectURL(url);
   };
 
-  const handleDownloadInvoicePDF = (row) => {
+  const handleDownloadInvoicePDF = async (row) => {
     const patientName = row.Patient || row['Patient Name'] || 'Aarav Kumar';
     const invoiceId = row['Invoice ID'] || row['Bill ID'] || row['Transaction ID'] || `INV-2026-${row.id || '01'}`;
     const amount = row['Total Amount'] || row.Amount || '$109.50';
-    const dateStr = row.Date || row['Due Date'] || row['Upload Date'] || '2026-08-13 10:30 AM';
+    const dateStr = row.Date || row['Due Date'] || row['Upload Date'] || '2026-08-13';
     const status = row.Status || row['Payment Status'] || 'Paid';
     const doctor = row.Doctor || 'Dr. Priya Nair';
+    const method = row.Method || 'Online Payment Desk';
 
-    const pdfText = `
-====================================================================================
-                        CITY CARE GENERAL HOSPITAL
-            OFFICIAL MEDICAL BILLING & INVOICE RECEIPT
-====================================================================================
+    const element = document.getElementById('printable-invoice-receipt');
+    if (element) {
+      try {
+        const canvas = await html2canvas(element, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff'
+        });
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const imgWidth = pdf.internal.pageSize.getWidth();
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-INVOICE & TRANSACTION METADATA
-------------------------------------------------------------------------------------
-Invoice / Receipt ID : ${invoiceId}
-Invoice Date & Time  : ${dateStr}
-Payment Status       : ${String(status).toUpperCase()}
-Payment Method       : Online Credit/Debit Card / Hospital Desk
+        pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+        pdf.save(`Invoice_${invoiceId.replace(/[^a-z0-9]/gi, '_')}_${patientName.replace(/[^a-z0-9]/gi, '_')}.pdf`);
+        return;
+      } catch (err) {
+        console.error('Canvas capture failed, generating vector PDF', err);
+      }
+    }
 
-PATIENT & CLINICAL DEMOGRAPHICS
-------------------------------------------------------------------------------------
-Patient Name         : ${patientName}
-Attending Doctor     : ${doctor}
-Department Wing      : Cardiology & General Clinical Wing
+    // Direct jsPDF Vector PDF Generator
+    const doc = new jsPDF('p', 'mm', 'a4');
 
-ITEMIZED CHARGES BREAKDOWN
-------------------------------------------------------------------------------------
-Item Description                              Qty / Days    Rate        Amount
-------------------------------------------------------------------------------------
-1. Consultation Fee (Dr. Priya Nair)               1        $50.00      $50.00
-2. Diagnostic Lab Profile (CBC & Metabolic)        1        $35.00      $35.00
-3. Prescribed Medications & Pharmacy Dispense      1        $24.50      $24.50
-------------------------------------------------------------------------------------
-                                                    Subtotal          : ${amount}
-                                                    Healthcare Tax    : $0.00
-                                                    --------------------------------
-                                                    GRAND TOTAL DUE   : ${amount}
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.setTextColor(15, 23, 42);
+    doc.text('CITY CARE GENERAL HOSPITAL', 14, 20);
 
-PAYMENT ACKNOWLEDGEMENT & STAMP
-------------------------------------------------------------------------------------
-Status: ${String(status).toUpperCase()} - Thank you for choosing City Care General Hospital.
-This is an official computer-generated medical tax invoice. Valid without signature.
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(100, 116, 139);
+    doc.text('Multi-Specialty Healthcare & Medical Research Center', 14, 26);
+    doc.text('100 Healthcare Blvd, Sector 4 • Phone: +91 98765 00000', 14, 31);
 
-Finance Department | City Care General Hospital | Phone: +91 98765 00000
-====================================================================================
-`;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(17, 94, 89);
+    doc.text('OFFICIAL TAX INVOICE', 196, 20, { align: 'right' });
 
-    const blob = new Blob([pdfText], { type: 'application/pdf;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Invoice_${invoiceId.replace(/[^a-z0-9]/gi, '_')}_${patientName.replace(/[^a-z0-9]/gi, '_')}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    doc.setFontSize(12);
+    doc.setTextColor(15, 23, 42);
+    doc.text(invoiceId, 196, 27, { align: 'right' });
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Date: ${dateStr}`, 196, 32, { align: 'right' });
+
+    doc.setDrawColor(15, 23, 42);
+    doc.setLineWidth(0.75);
+    doc.line(14, 37, 196, 37);
+
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(14, 42, 182, 26, 3, 3, 'F');
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(14, 42, 182, 26, 3, 3, 'D');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    doc.text('BILLED TO PATIENT', 18, 48);
+    doc.text('PAYMENT SUMMARY', 192, 48, { align: 'right' });
+
+    doc.setFontSize(11);
+    doc.setTextColor(15, 23, 42);
+    doc.text(patientName, 18, 54);
+
+    doc.setFontSize(10);
+    doc.setTextColor(5, 150, 105);
+    doc.text(`Status: ${status}`, 192, 54, { align: 'right' });
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(71, 85, 105);
+    doc.text(`Attending Doctor: ${doctor}`, 18, 60);
+    doc.text(`Method: ${method}`, 192, 60, { align: 'right' });
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(100, 116, 139);
+    doc.text('DESCRIPTION', 14, 76);
+    doc.text('QTY / DAYS', 120, 76, { align: 'center' });
+    doc.text('AMOUNT', 196, 76, { align: 'right' });
+
+    doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(0.5);
+    doc.line(14, 79, 196, 79);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9.5);
+    doc.setTextColor(15, 23, 42);
+    doc.text('Hospital Consultation & Clinical Care Services', 14, 87);
+    doc.setFont('helvetica', 'normal');
+    doc.text('1', 120, 87, { align: 'center' });
+    doc.text(amount, 196, 87, { align: 'right' });
+
+    doc.setFontSize(9);
+    doc.setTextColor(71, 85, 105);
+    doc.text('Diagnostic Laboratory Profile & Pharmacy Dispense', 14, 95);
+    doc.text('1', 120, 95, { align: 'center' });
+    doc.text('Included', 196, 95, { align: 'right' });
+
+    doc.setDrawColor(15, 23, 42);
+    doc.setLineWidth(0.75);
+    doc.line(14, 105, 196, 105);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(71, 85, 105);
+    doc.text('Computer Generated Official Receipt', 14, 112);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(100, 116, 139);
+    doc.text('Thank you for choosing City Care General Hospital.', 14, 117);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(100, 116, 139);
+    doc.text('GRAND TOTAL', 150, 114, { align: 'right' });
+
+    doc.setFontSize(16);
+    doc.setTextColor(15, 23, 42);
+    doc.text(amount, 196, 115, { align: 'right' });
+
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    doc.text('Issued by Finance Department | City Care General Hospital | Phone: +91 98765 00000', 14, 135);
+    doc.text('Valid without signature • Hospital Seal Applied', 196, 135, { align: 'right' });
+
+    doc.save(`Invoice_${invoiceId.replace(/[^a-z0-9]/gi, '_')}_${patientName.replace(/[^a-z0-9]/gi, '_')}.pdf`);
   };
 
   const handlePrintInvoice = (row) => {
-    setSelectedInvoiceModal(row);
+    const patientName = row.Patient || row['Patient Name'] || 'Aarav Kumar';
+    const invoiceId = row['Invoice ID'] || row['Bill ID'] || row['Transaction ID'] || `INV-2026-${row.id || '01'}`;
+    const amount = row['Total Amount'] || row.Amount || '$109.50';
+    const dateStr = row.Date || row['Due Date'] || '2026-08-13';
+    const status = row.Status || row['Payment Status'] || 'Paid';
+    const doctor = row.Doctor || 'Dr. Priya Nair';
+    const method = row.Method || 'Online Payment Desk';
+
+    const printWin = window.open('', '_blank', 'width=850,height=950');
+    if (!printWin) {
+      setSelectedInvoiceModal(row);
+      setTimeout(() => window.print(), 300);
+      return;
+    }
+
+    printWin.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Invoice - ${invoiceId}</title>
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 15mm;
+            }
+            * { box-sizing: border-box; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+            body { margin: 0; padding: 25px; color: #0f172a; background: #ffffff; font-size: 13px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2.5px solid #0f172a; padding-bottom: 18px; margin-bottom: 22px; }
+            .title { font-size: 24px; font-weight: 900; color: #0f172a; letter-spacing: 0.5px; margin: 0; }
+            .subtitle { font-size: 11px; color: #64748b; margin-top: 4px; }
+            .badge { display: inline-block; background: #ccfbf1; color: #115e59; font-weight: 800; padding: 5px 12px; border-radius: 9999px; font-size: 10px; text-transform: uppercase; border: 1px solid #99f6e4; margin-bottom: 8px; }
+            .meta-grid { display: flex; justify-content: space-between; background: #f8fafc; border: 1px solid #e2e8f0; padding: 18px; border-radius: 14px; margin-bottom: 24px; }
+            .meta-col { width: 48%; }
+            .meta-label { font-size: 9px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+            .meta-val { font-size: 14px; font-weight: 800; color: #0f172a; margin-top: 4px; }
+            .meta-sub { font-size: 11px; color: #475569; margin-top: 2px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 28px; }
+            th { text-align: left; padding: 10px 8px; border-bottom: 2px solid #cbd5e1; color: #64748b; font-size: 10px; text-transform: uppercase; font-weight: 800; }
+            td { padding: 14px 8px; border-bottom: 1px solid #f1f5f9; font-size: 12px; }
+            .text-right { text-align: right; }
+            .text-center { text-align: center; }
+            .total-section { border-top: 2.5px solid #0f172a; padding-top: 18px; display: flex; justify-content: space-between; align-items: flex-end; }
+            .grand-total { font-size: 24px; font-weight: 900; color: #0f172a; }
+            .footer-note { font-size: 10px; color: #94a3b8; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 15px; display: flex; justify-content: space-between; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <h1 class="title">CITY CARE GENERAL HOSPITAL</h1>
+              <p class="subtitle">Multi-Specialty Healthcare & Medical Research Center</p>
+              <p class="subtitle">100 Healthcare Blvd, Sector 4 • Phone: +91 98765 00000</p>
+            </div>
+            <div class="text-right">
+              <span class="badge">Official Tax Invoice</span>
+              <p style="font-size: 15px; font-weight: 800; margin: 4px 0 2px 0;">${invoiceId}</p>
+              <p style="font-size: 11px; color: #64748b; margin: 0;">Date: ${dateStr}</p>
+            </div>
+          </div>
+
+          <div class="meta-grid">
+            <div class="meta-col">
+              <div class="meta-label">Billed To Patient</div>
+              <div class="meta-val">${patientName}</div>
+              <div class="meta-sub">Attending Doctor: ${doctor}</div>
+            </div>
+            <div class="meta-col text-right">
+              <div class="meta-label">Payment Summary</div>
+              <div class="meta-val" style="color: #059669;">Status: ${status}</div>
+              <div class="meta-sub">Method: ${method}</div>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th class="text-center">Qty / Days</th>
+                <th class="text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="font-weight: 700; color: #0f172a;">Hospital Consultation & Clinical Care Services</td>
+                <td class="text-center">1</td>
+                <td class="text-right">${amount}</td>
+              </tr>
+              <tr>
+                <td>Diagnostic Laboratory Profile & Pharmacy Dispense</td>
+                <td class="text-center">1</td>
+                <td class="text-right">Included</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="total-section">
+            <div>
+              <p style="font-weight: 700; margin: 0 0 2px 0; font-size: 11px;">Computer Generated Official Invoice</p>
+              <p style="color: #64748b; margin: 0; font-size: 10px;">Thank you for choosing City Care General Hospital.</p>
+            </div>
+            <div class="text-right">
+              <span style="font-size: 10px; text-transform: uppercase; font-weight: 800; color: #64748b; margin-right: 10px;">Grand Total</span>
+              <span class="grand-total">${amount}</span>
+            </div>
+          </div>
+
+          <div class="footer-note">
+            <span>Issued by Finance Dept | City Care General Hospital</span>
+            <span>Valid without signature • Hospital Seal Applied</span>
+          </div>
+
+          <script>
+            window.onload = function() {
+              window.print();
+              window.onafterprint = function() { window.close(); };
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWin.document.close();
   };
 
 
