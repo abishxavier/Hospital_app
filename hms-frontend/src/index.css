@@ -73,3 +73,29 @@ body {
   background: #94a3b8;
 }
 
+/* Print Stylesheet for Hospital Bills & Invoices */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  #printable-invoice-receipt,
+  #printable-invoice-receipt * {
+    visibility: visible !important;
+  }
+  #printable-invoice-receipt {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    padding: 20px !important;
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+
+
