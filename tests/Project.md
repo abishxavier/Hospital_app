@@ -15,32 +15,32 @@ Role Persona	Quick Demo Username	Demo Password	Scope & Module Permissions	Defaul
 #### 📋 Hospital Receptionist	reception@hospital.com	reception	Reception & Billing: Patient Check-In, Appointment Booking, Queue Token Tracking, Consultation Charges & Invoices	/reception/patient-registration
 #### 🧪 Laboratory	lab@hospital.com	lab	Laboratory Module Only: Test Requests, Barcoded Sample Collection, Report Entry & PDF Upload	/laboratory/test-request
 ## 🚀 Key Modules & Capabilities
-Admin Module (
+### Admin Module (
 
 Dashboard.jsx
 )
 Live metrics (Patients, Doctors, Revenue, Occupancy), User & Staff Management, Department Wings, System Settings, and Deleted Records Audit Log.
-Reception Module
+### Reception Module
 Outpatient Check-In & Demographic Registration, Appointment Booking, Real-time Queue Token tracking (TK-01), and OP/IP status switching.
-Doctor Module
+### Doctor Module
 Today's Clinical Schedule, Patient History (EMR), ICD Diagnoses, Digital Prescription Writer (with medicine drop-down selector), Lab Test Requests, and Follow-up Scheduler.
-Nurse Module
+### Nurse Module
 Bedside Vitals (BP, Heart Rate, Temperature, Pain Scale 0-10, RBS, SpO2), Ward Bed Occupancy Tracking, Bedside Dose Administration, and Daily Nursing Observation Notes.
-Laboratory Module
+### Laboratory Module
 Incoming Doctor Test Requests, Barcoded Sample Collection, Diagnostic Finding Entry, and PDF Scanned Report Upload.
-Pharmacy Module
+### Pharmacy Module
 Medicine Inventory (Batch & Expiry tracking), Prescription Dispensing, Medicine Billing, and Low Stock Alerts.
 Inpatient (IP) Module
 Deluxe/Private Room Allocation, IP Admissions, Post-op Treatment Records, Daily Progress Notes, and Discharge Summaries.
-Billing Module
+### Billing Module
 Itemized Consultation Charges, Lab & Pharmacy Charges, Room Charges, Payment Gateway log (TXN-9901), and Consolidated Invoice Generation.
-Patient Portal
+### Patient Portal
 Portal Account Access, Online Appointment Booking, Prescription View, PDF Lab Report Downloads, and Medical History EMR logs.
-🧪 Automated Testing & Reliability
+## 🧪 Automated Testing & Reliability
 The codebase features a 23-test automated test suite in 
 
 tests/
- covering 8 dimensions:
+### covering 8 dimensions:
 
 Unit Tests (
 
@@ -73,7 +73,8 @@ test_database_persistence_and_deletion.py
 💻 How to Run locally
 bash
 # 1. Start FastAPI Backend (Port 8000)
-.\.venv\Scripts\python.exe -m uvicorn hms_backend.app.main:app --host 127.0.0.1 --port 8000
+.\.venv\Scripts\python.exe -m uvicorn 
+hms_backend.app.main:app --host 127.0.0.1 --port 8000
 # 2. Start React Frontend (Port 5173)
 npm.cmd --prefix hms-frontend run dev
 Frontend App: http://localhost:5173/
