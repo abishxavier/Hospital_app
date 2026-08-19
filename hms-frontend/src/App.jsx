@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Plus, Search, Filter, Trash2, Download, RefreshCw, ChevronLeft, ChevronRight, X, FileText, AlertCircle, Calendar, Clock } from 'lucide-react';
+import { Plus, Search, Filter, Trash2, Download, Printer, RefreshCw, ChevronLeft, ChevronRight, X, FileText, AlertCircle, Calendar, Clock, CheckCircle2 } from 'lucide-react';
 import Layout from './components/Layout/Layout';
 import AdminDashboard from './pages/Admin/Dashboard';
 import Login from './pages/Auth/Login';
@@ -465,13 +465,14 @@ const DateTimePicker = ({ value, onChange, placeholder = "Select Date & Time" })
 
 
 // Generic Interactive Page Component
-const GenericPage = ({ title, description, cols, defaultData = [], apiEndpoint, isLabReport = false }) => {
+const GenericPage = ({ title, description, cols, defaultData = [], apiEndpoint, isLabReport = false, isBilling = false }) => {
   const [data, setData] = useState(defaultData);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedInvoiceModal, setSelectedInvoiceModal] = useState(null);
   const [formData, setFormData] = useState({});
   const [dateError, setDateError] = useState('');
 
@@ -681,6 +682,71 @@ Confidential Medical Report. Hospital Seal Applied.
     URL.revokeObjectURL(url);
   };
 
+  const handleDownloadInvoicePDF = (row) => {
+    const patientName = row.Patient || row['Patient Name'] || 'Aarav Kumar';
+    const invoiceId = row['Invoice ID'] || row['Bill ID'] || row['Transaction ID'] || `INV-2026-${row.id || '01'}`;
+    const amount = row['Total Amount'] || row.Amount || '$109.50';
+    const dateStr = row.Date || row['Due Date'] || row['Upload Date'] || '2026-08-13 10:30 AM';
+    const status = row.Status || row['Payment Status'] || 'Paid';
+    const doctor = row.Doctor || 'Dr. Priya Nair';
+
+    const pdfText = `
+====================================================================================
+                        CITY CARE GENERAL HOSPITAL
+            OFFICIAL MEDICAL BILLING & INVOICE RECEIPT
+====================================================================================
+
+INVOICE & TRANSACTION METADATA
+------------------------------------------------------------------------------------
+Invoice / Receipt ID : ${invoiceId}
+Invoice Date & Time  : ${dateStr}
+Payment Status       : ${String(status).toUpperCase()}
+Payment Method       : Online Credit/Debit Card / Hospital Desk
+
+PATIENT & CLINICAL DEMOGRAPHICS
+------------------------------------------------------------------------------------
+Patient Name         : ${patientName}
+Attending Doctor     : ${doctor}
+Department Wing      : Cardiology & General Clinical Wing
+
+ITEMIZED CHARGES BREAKDOWN
+------------------------------------------------------------------------------------
+Item Description                              Qty / Days    Rate        Amount
+------------------------------------------------------------------------------------
+1. Consultation Fee (Dr. Priya Nair)               1        $50.00      $50.00
+2. Diagnostic Lab Profile (CBC & Metabolic)        1        $35.00      $35.00
+3. Prescribed Medications & Pharmacy Dispense      1        $24.50      $24.50
+------------------------------------------------------------------------------------
+                                                    Subtotal          : ${amount}
+                                                    Healthcare Tax    : $0.00
+                                                    --------------------------------
+                                                    GRAND TOTAL DUE   : ${amount}
+
+PAYMENT ACKNOWLEDGEMENT & STAMP
+------------------------------------------------------------------------------------
+Status: ${String(status).toUpperCase()} - Thank you for choosing City Care General Hospital.
+This is an official computer-generated medical tax invoice. Valid without signature.
+
+Finance Department | City Care General Hospital | Phone: +91 98765 00000
+====================================================================================
+`;
+
+    const blob = new Blob([pdfText], { type: 'application/pdf;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Invoice_${invoiceId.replace(/[^a-z0-9]/gi, '_')}_${patientName.replace(/[^a-z0-9]/gi, '_')}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handlePrintInvoice = (row) => {
+    setSelectedInvoiceModal(row);
+  };
+
+
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
       {/* Modal Overlay */}
@@ -884,6 +950,26 @@ Confidential Medical Report. Hospital Seal Applied.
                           Download
                         </button>
                       )}
+                      {isBilling && (
+                        <>
+                          <button
+                            onClick={() => handlePrintInvoice(row)}
+                            title="Print Official Bill"
+                            className="inline-flex items-center px-2.5 py-1 text-xs font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-lg transition-colors border border-teal-200"
+                          >
+                            <Printer className="w-3.5 h-3.5 mr-1" />
+                            Print Bill
+                          </button>
+                          <button
+                            onClick={() => handleDownloadInvoicePDF(row)}
+                            title="Download Invoice PDF"
+                            className="inline-flex items-center px-2.5 py-1 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200"
+                          >
+                            <Download className="w-3.5 h-3.5 mr-1" />
+                            PDF
+                          </button>
+                        </>
+                      )}
                       <button
                         onClick={() => handleDelete(row.id)}
                         title="Delete record"
@@ -945,6 +1031,109 @@ Confidential Medical Report. Hospital Seal Applied.
           </div>
         </div>
       </div>
+
+      {/* Printable Hospital Invoice & Bill Modal */}
+      {selectedInvoiceModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200 my-8">
+            
+            {/* Modal Controls Bar (hidden during print) */}
+            <div className="p-4 bg-slate-900 text-white flex justify-between items-center no-print">
+              <div className="flex items-center space-x-2">
+                <Printer className="w-5 h-5 text-teal-400" />
+                <h3 className="font-bold text-sm">Official Invoice & Receipt Preview</h3>
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => window.print()}
+                  className="px-3.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold flex items-center shadow-sm transition-colors"
+                >
+                  <Printer className="w-3.5 h-3.5 mr-1.5" />
+                  Print Official Receipt
+                </button>
+                <button
+                  onClick={() => handleDownloadInvoicePDF(selectedInvoiceModal)}
+                  className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center shadow-sm transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5 mr-1.5" />
+                  Download PDF
+                </button>
+                <button onClick={() => setSelectedInvoiceModal(null)} className="text-slate-400 hover:text-white p-1 ml-2">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Printable Receipt Layout */}
+            <div id="printable-invoice-receipt" className="p-8 sm:p-10 bg-white text-slate-800">
+              {/* Header Branding */}
+              <div className="flex justify-between items-start border-b-2 border-slate-900 pb-6 mb-6">
+                <div>
+                  <h1 className="text-2xl font-black tracking-wider text-slate-900">CITY CARE GENERAL HOSPITAL</h1>
+                  <p className="text-xs text-slate-500 mt-1">Multi-Specialty Healthcare & Medical Research Center</p>
+                  <p className="text-xs text-slate-500">100 Healthcare Blvd, Sector 4 • Phone: +91 98765 00000</p>
+                </div>
+                <div className="text-right">
+                  <span className="inline-block bg-teal-50 border border-teal-200 text-teal-800 text-xs font-black uppercase px-3 py-1 rounded-full mb-2">
+                    Official Tax Invoice
+                  </span>
+                  <p className="text-sm font-bold text-slate-900">{selectedInvoiceModal['Invoice ID'] || selectedInvoiceModal['Bill ID'] || selectedInvoiceModal['Transaction ID'] || `INV-2026-${selectedInvoiceModal.id || '01'}`}</p>
+                  <p className="text-xs text-slate-500">Date: {selectedInvoiceModal.Date || selectedInvoiceModal['Due Date'] || '2026-08-13'}</p>
+                </div>
+              </div>
+
+              {/* Patient & Invoice Grid */}
+              <div className="grid grid-cols-2 gap-6 bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-6 text-xs">
+                <div>
+                  <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Billed To Patient</p>
+                  <p className="text-sm font-bold text-slate-900 mt-0.5">{selectedInvoiceModal.Patient || selectedInvoiceModal['Patient Name'] || 'Aarav Kumar'}</p>
+                  <p className="text-slate-600 mt-0.5">Attending Doctor: {selectedInvoiceModal.Doctor || 'Dr. Priya Nair'}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Payment Summary</p>
+                  <p className="text-sm font-bold text-emerald-600 mt-0.5">Status: {selectedInvoiceModal.Status || selectedInvoiceModal['Payment Status'] || 'Paid'}</p>
+                  <p className="text-slate-600 mt-0.5">Method: {selectedInvoiceModal.Method || 'Online Payment Desk'}</p>
+                </div>
+              </div>
+
+              {/* Items Table */}
+              <table className="w-full text-xs text-left mb-6">
+                <thead>
+                  <tr className="border-b-2 border-slate-200 text-slate-500 uppercase tracking-wider font-bold">
+                    <th className="py-2.5">Description</th>
+                    <th className="py-2.5 text-center">Qty / Days</th>
+                    <th className="py-2.5 text-right">Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                  <tr>
+                    <td className="py-3 font-semibold text-slate-900">Hospital Consultation & Clinical Care Services</td>
+                    <td className="py-3 text-center">1</td>
+                    <td className="py-3 text-right">{selectedInvoiceModal.Amount || selectedInvoiceModal['Total Amount'] || '$109.50'}</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3">Diagnostic Laboratory Profile & Pharmacy Dispense</td>
+                    <td className="py-3 text-center">1</td>
+                    <td className="py-3 text-right">Included</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              {/* Total Summary */}
+              <div className="border-t-2 border-slate-900 pt-4 flex justify-between items-end">
+                <div className="text-xs text-slate-500">
+                  <p className="font-bold text-slate-700">Computer Generated Official Invoice</p>
+                  <p>Thank you for choosing City Care General Hospital.</p>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs text-slate-500 uppercase font-bold mr-3">Grand Total</span>
+                  <span className="text-2xl font-black text-slate-900">{selectedInvoiceModal['Total Amount'] || selectedInvoiceModal.Amount || '$109.50'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -989,7 +1178,7 @@ const ReportUpload = () => <GenericPage title="Report Upload" description="Uploa
 // 6. Pharmacy
 const MedicineInventory = () => <GenericPage title="Medicine Inventory" description="Manage pharmacy stock and expiry dates." cols={['Medicine Name', 'Batch No', 'Expiry Date', 'Stock Qty', 'Status']} apiEndpoint="/api/v1/pharmacy/inventory" defaultData={[{ id: 1, 'Medicine Name': 'Paracetamol 650mg', 'Batch No': 'BAT-2024-X', 'Expiry Date': '2027-11-30 23:59 PM', 'Stock Qty': '1,200 Tabs', Status: 'Available' }]} />;
 const PrescriptionProcessing = () => <GenericPage title="Prescription Processing" description="Dispense medicines for prescriptions." cols={['Prescription ID', 'Patient', 'Doctor', 'Status']} apiEndpoint="/api/v1/pharmacy/prescription-processing" defaultData={[{ id: 1, 'Prescription ID': 'RX-501', Patient: 'Aarav Kumar', Doctor: 'Dr. Priya Nair', Status: 'Ready for Dispense' }]} />;
-const MedicineBilling = () => <GenericPage title="Medicine Billing" description="Bill medicines to patients." cols={['Bill ID', 'Patient', 'Total Amount', 'Payment Status']} apiEndpoint="/api/v1/pharmacy/medicine-billing" defaultData={[{ id: 1, 'Bill ID': 'PH-901', Patient: 'Aarav Kumar', 'Total Amount': '$24.50', 'Payment Status': 'Paid' }]} />;
+const MedicineBilling = () => <GenericPage title="Medicine Billing" description="Bill medicines to patients." cols={['Bill ID', 'Patient', 'Total Amount', 'Payment Status']} apiEndpoint="/api/v1/pharmacy/medicine-billing" isBilling={true} defaultData={[{ id: 1, 'Bill ID': 'PH-901', Patient: 'Aarav Kumar', 'Total Amount': '$24.50', 'Payment Status': 'Paid' }]} />;
 const StockAlerts = () => <GenericPage title="Stock Alerts" description="Low stock and re-order alerts." cols={['Medicine Name', 'Alert Type', 'Current Stock', 'Action Required']} apiEndpoint="/api/v1/pharmacy/stock-alerts" defaultData={[{ id: 1, 'Medicine Name': 'Pantoprazole 40mg', 'Alert Type': 'Low Stock', 'Current Stock': '80 Tabs', 'Action Required': 'Re-order 500 Tabs' }]} />;
 
 // 7. Inpatient (IP)
@@ -1000,19 +1189,19 @@ const DailyProgress = () => <GenericPage title="Daily Progress" description="Dai
 const DischargeSummary = () => <GenericPage title="Discharge Summary" description="Prepare discharge summaries." cols={['Patient', 'Discharge Date', 'Summary Status', 'Prepared By']} apiEndpoint="/api/v1/inpatient/discharge-summary" isLabReport={true} defaultData={[{ id: 1, Patient: 'Karan Malhotra', 'Discharge Date': '2026-08-13 16:30 PM', 'Summary Status': 'Completed', 'Prepared By': 'Dr. Robert Chen' }]} />;
 
 // 8. Billing
-const ConsultationCharges = () => <GenericPage title="Consultation Charges" description="Manage OP consultation fees." cols={['Patient', 'Doctor', 'Amount', 'Date', 'Status']} apiEndpoint="/api/v1/billing/consultation-charges" defaultData={[{ id: 1, Patient: 'Aarav Kumar', Doctor: 'Dr. Priya Nair', Amount: '$50.00', Date: '2026-08-13 10:30 AM', Status: 'Paid' }]} />;
-const LabCharges = () => <GenericPage title="Lab Charges" description="Manage diagnostic charges." cols={['Patient', 'Test Name', 'Amount', 'Status']} apiEndpoint="/api/v1/billing/lab-charges" defaultData={[{ id: 1, Patient: 'Aarav Kumar', 'Test Name': 'CBC Blood Profile', Amount: '$35.00', Status: 'Paid' }]} />;
-const PharmacyCharges = () => <GenericPage title="Pharmacy Charges" description="Medicine charges." cols={['Patient', 'Bill ID', 'Amount', 'Date', 'Status']} apiEndpoint="/api/v1/billing/pharmacy-charges" defaultData={[{ id: 1, Patient: 'Aarav Kumar', 'Bill ID': 'PH-901', Amount: '$24.50', Date: '2026-08-13 11:00 AM', Status: 'Paid' }]} />;
-const RoomCharges = () => <GenericPage title="Room Charges" description="IPD room and bed charges." cols={['Patient', 'Days Stayed', 'Total Amount', 'Status']} apiEndpoint="/api/v1/billing/room-charges" defaultData={[{ id: 1, Patient: 'Siddharth Roy', 'Days Stayed': '2 Days', 'Total Amount': '$400.00', Status: 'Pending' }]} />;
-const PaymentGateway = () => <GenericPage title="Payment Gateway" description="Online transaction logs." cols={['Transaction ID', 'Patient', 'Amount', 'Method', 'Status']} apiEndpoint="/api/v1/billing/payment-gateway" defaultData={[{ id: 1, 'Transaction ID': 'TXN-9901', Patient: 'Aarav Kumar', Amount: '$109.50', Method: 'Credit Card', Status: 'Completed' }]} />;
-const InvoiceGeneration = () => <GenericPage title="Invoice Generation" description="Generate consolidated invoices." cols={['Invoice ID', 'Patient', 'Total Amount', 'Due Date', 'Status']} apiEndpoint="/api/v1/billing/invoices" defaultData={[{ id: 1, 'Invoice ID': 'INV-2026-01', Patient: 'Aarav Kumar', 'Total Amount': '$109.50', 'Due Date': '2026-08-13 17:00 PM', Status: 'Paid' }]} />;
+const ConsultationCharges = () => <GenericPage title="Consultation Charges" description="Manage OP consultation fees." cols={['Patient', 'Doctor', 'Amount', 'Date', 'Status']} apiEndpoint="/api/v1/billing/consultation-charges" isBilling={true} defaultData={[{ id: 1, Patient: 'Aarav Kumar', Doctor: 'Dr. Priya Nair', Amount: '$50.00', Date: '2026-08-13 10:30 AM', Status: 'Paid' }]} />;
+const LabCharges = () => <GenericPage title="Lab Charges" description="Manage diagnostic charges." cols={['Patient', 'Test Name', 'Amount', 'Status']} apiEndpoint="/api/v1/billing/lab-charges" isBilling={true} defaultData={[{ id: 1, Patient: 'Aarav Kumar', 'Test Name': 'CBC Blood Profile', Amount: '$35.00', Status: 'Paid' }]} />;
+const PharmacyCharges = () => <GenericPage title="Pharmacy Charges" description="Medicine charges." cols={['Patient', 'Bill ID', 'Amount', 'Date', 'Status']} apiEndpoint="/api/v1/billing/pharmacy-charges" isBilling={true} defaultData={[{ id: 1, Patient: 'Aarav Kumar', 'Bill ID': 'PH-901', Amount: '$24.50', Date: '2026-08-13 11:00 AM', Status: 'Paid' }]} />;
+const RoomCharges = () => <GenericPage title="Room Charges" description="IPD room and bed charges." cols={['Patient', 'Days Stayed', 'Total Amount', 'Status']} apiEndpoint="/api/v1/billing/room-charges" isBilling={true} defaultData={[{ id: 1, Patient: 'Siddharth Roy', 'Days Stayed': '2 Days', 'Total Amount': '$400.00', Status: 'Pending' }]} />;
+const PaymentGateway = () => <GenericPage title="Payment Gateway" description="Online transaction logs." cols={['Transaction ID', 'Patient', 'Amount', 'Method', 'Status']} apiEndpoint="/api/v1/billing/payment-gateway" isBilling={true} defaultData={[{ id: 1, 'Transaction ID': 'TXN-9901', Patient: 'Aarav Kumar', Amount: '$109.50', Method: 'Credit Card', Status: 'Completed' }]} />;
+const InvoiceGeneration = () => <GenericPage title="Invoice Generation" description="Generate consolidated invoices." cols={['Invoice ID', 'Patient', 'Total Amount', 'Due Date', 'Status']} apiEndpoint="/api/v1/billing/invoices" isBilling={true} defaultData={[{ id: 1, 'Invoice ID': 'INV-2026-01', Patient: 'Aarav Kumar', 'Total Amount': '$109.50', 'Due Date': '2026-08-13 17:00 PM', Status: 'Paid' }]} />;
 
 // 9. Patient Portal
 const PortalLogin = () => <GenericPage title="Portal Login Settings" description="Manage portal access." cols={['Patient User', 'Last Login', 'Account Status']} apiEndpoint="/api/v1/portal/login-settings" defaultData={[{ id: 1, 'Patient User': 'aarav.kumar@email.com', 'Last Login': 'Today 09:15 AM', 'Account Status': 'Active' }]} />;
 const BookApptPortal = () => <GenericPage title="Book Appointment" description="Appointments booked via portal." cols={['Patient', 'Doctor', 'Requested Date', 'Status']} apiEndpoint="/api/v1/portal/book-appointment" defaultData={[{ id: 1, Patient: 'Meera Shah', Doctor: 'Dr. Robert Chen', 'Requested Date': '2026-08-14 10:00 AM', Status: 'Confirmed' }]} />;
 const ViewPrescriptionsPortal = () => <GenericPage title="View Prescriptions" description="Prescriptions shared to portal." cols={['Patient', 'Doctor', 'Prescription Date', 'Medicines', 'Status']} apiEndpoint="/api/v1/portal/view-prescriptions" defaultData={[{ id: 1, Patient: 'Aarav Kumar', Doctor: 'Dr. Priya Nair', 'Prescription Date': '2026-08-13 10:30 AM', Medicines: 'Paracetamol 650mg', Status: 'Active' }]} />;
 const DownloadLabReports = () => <GenericPage title="Download Lab Reports" description="Reports accessed by patients with download button." cols={['Patient', 'Report Name', 'Download Date', 'Status']} apiEndpoint="/api/v1/portal/download-reports" isLabReport={true} defaultData={[{ id: 1, Patient: 'Aarav Kumar', 'Report Name': 'CBC_Blood_Report', 'Download Date': '2026-08-13 11:15 AM', Status: 'Downloaded' }]} />;
-const OnlinePayment = () => <GenericPage title="Online Payment" description="Payments made via portal." cols={['Patient', 'Amount', 'Date', 'Reference ID', 'Status']} apiEndpoint="/api/v1/portal/online-payment" defaultData={[{ id: 1, Patient: 'Aarav Kumar', Amount: '$109.50', Date: '2026-08-13 12:45 PM', 'Reference ID': 'PAY-88219', Status: 'Successful' }]} />;
+const OnlinePayment = () => <GenericPage title="Online Payment" description="Payments made via portal." cols={['Patient', 'Amount', 'Date', 'Reference ID', 'Status']} apiEndpoint="/api/v1/portal/online-payment" isBilling={true} defaultData={[{ id: 1, Patient: 'Aarav Kumar', Amount: '$109.50', Date: '2026-08-13 12:45 PM', 'Reference ID': 'PAY-88219', Status: 'Successful' }]} />;
 const MedicalHistory = () => <GenericPage title="Medical History" description="Patient EMR access logs." cols={['Patient', 'Accessed Data', 'Date', 'Status']} apiEndpoint="/api/v1/portal/medical-history" defaultData={[{ id: 1, Patient: 'Aarav Kumar', 'Accessed Data': 'Immunization & EMR Logs', Date: '2026-08-13 14:00 PM', Status: 'Verified' }]} />;
 
 
