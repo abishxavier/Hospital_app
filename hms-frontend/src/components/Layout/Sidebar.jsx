@@ -12,7 +12,8 @@ import {
   MonitorSmartphone,
   ChevronDown,
   ChevronRight,
-  Circle
+  Circle,
+  LogOut
 } from 'lucide-react';
 
 const MODULES = [
@@ -243,6 +244,17 @@ export default function Sidebar({ isOpenMobile, onCloseMobile, userRole: userRol
           );
         })}
       </nav>
+
+      {/* Footer Switch Account Link */}
+      <div className="p-4 border-t border-slate-200 shrink-0 bg-slate-50/50">
+        <NavLink
+          to="/login"
+          className="flex items-center justify-center w-full px-4 py-2.5 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 shadow-sm transition-colors"
+        >
+          <LogOut className="w-4 h-4 mr-2 text-rose-500" />
+          Switch Account / Login
+        </NavLink>
+      </div>
     </aside>
   );
 }
