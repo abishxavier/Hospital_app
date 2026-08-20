@@ -60,11 +60,46 @@ def delete_generic_record(db: Session, category: str, record_id: int):
     try:
         data_snapshot = json.loads(rec.data)
     except Exception:
-        data_snapshot = {"id": rec.id}
-    data_snapshot["id"] = rec.id
+        data_snapshot = {}
+
+    log_deleted_record(db, category, rec.id, data_snapshot)
 
     rec.is_deleted = True
-    log_deleted_record(db, category.replace("_", " ").title(), rec.id, data_snapshot)
+    db.commit()
+    return {"status": "success", "message": f"Record #{record_id} in category '{category}' marked as deleted and archived."}
+
+
+def update_generic_record(db: Session, category: str, record_id: int, payload: dict):
+    rec = db.query(GenericRecord).filter(
+        GenericRecord.id == record_id,
+        GenericRecord.category == category
+    ).first()
+
+    if not rec:
+        rec = db.query(GenericRecord).filter(GenericRecord.id == record_id).first()
+
+    if not rec:
+        clean_payload = {k: v for k, v in payload.items() if k != "id"}
+        new_rec = GenericRecord(category=category, data=json.dumps(clean_payload), is_deleted=False)
+        db.add(new_rec)
+        db.commit()
+        db.refresh(new_rec)
+        res = clean_payload.copy()
+        res["id"] = new_rec.id
+        return res
+
+    try:
+        current_data = json.loads(rec.data)
+    except Exception:
+        current_data = {}
+
+    for k, v in payload.items():
+        if k != "id":
+            current_data[k] = v
+
+    rec.data = json.dumps(current_data)
     db.commit()
 
-    return {"status": "success", "message": f"Record #{record_id} marked as deleted in database and saved in deleted_records table."}
+    res = current_data.copy()
+    res["id"] = rec.id
+    return res
