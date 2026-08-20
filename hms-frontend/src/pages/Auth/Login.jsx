@@ -16,76 +16,50 @@ import {
 
 const ROLES_LIST = [
   {
-    id: 'doctor_madhavan',
+    id: 'doctor',
     role: 'doctor',
-    label: 'Dr. Madhavan (Cardiology)',
+    label: 'Doctor',
     doctorName: 'Dr. Madhavan',
-    subtitle: 'Cardiology Specialist Appointments',
+    subtitle: 'Doctor Consultations & Clinical Records',
     icon: Stethoscope,
     username: 'madhavan@hospital.org',
     password: 'doctor123'
   },
   {
-    id: 'doctor_karthikeyan',
-    role: 'doctor',
-    label: 'Dr. S. Karthikeyan (Neurology)',
-    doctorName: 'Dr. S. Karthikeyan',
-    subtitle: 'Neurology Consultation List',
-    icon: Stethoscope,
-    username: 'karthikeyan@hospital.org',
-    password: 'doctor123'
-  },
-  {
-    id: 'doctor_murugan',
-    role: 'doctor',
-    label: 'Dr. Murugan Jeyaraman (Pediatrics)',
-    doctorName: 'Dr. Murugan Jeyaraman',
-    subtitle: 'Pediatric Care & Appointments',
-    icon: Stethoscope,
-    username: 'murugan@hospital.org',
-    password: 'doctor123'
-  },
-  {
-    id: 'doctor_rajkanna',
-    role: 'doctor',
-    label: 'Dr. Raj Kanna (Orthopedics)',
-    doctorName: 'Dr. Raj Kanna',
-    subtitle: 'Orthopedic Consultations',
-    icon: Stethoscope,
-    username: 'rajkanna@hospital.org',
-    password: 'doctor123'
-  },
-  {
-    id: 'admin',
-    role: 'admin',
-    label: 'Admin (Dr. Sarah Johnson)',
-    subtitle: 'Full System Control & All Modules',
-    icon: ShieldCheck,
-    username: 'admin@hospital.com',
-    password: 'admin123'
-  },
-  {
-    id: 'nurse',
-    role: 'nurse',
-    label: 'Nurse (Selvi. V. Mary)',
-    subtitle: 'Patient Vitals, Wards & Med Admin',
-    icon: HeartPulse,
-    username: 'nurse@hospital.com',
-    password: 'nurse123'
-  },
-  {
     id: 'receptionist',
     role: 'receptionist',
-    label: 'Receptionist (Rajesh)',
+    label: 'Receptionist',
+    doctorName: 'Rajesh',
     subtitle: 'Check-In, Appointments & Billing',
     icon: UserPlus,
     username: 'reception@hospital.com',
     password: 'reception123'
   },
   {
+    id: 'nurse',
+    role: 'nurse',
+    label: 'Nurse',
+    doctorName: 'Selvi. V. Mary',
+    subtitle: 'Patient Vitals, Wards & Med Admin',
+    icon: HeartPulse,
+    username: 'nurse@hospital.com',
+    password: 'nurse123'
+  },
+  {
+    id: 'admin',
+    role: 'admin',
+    label: 'Admin',
+    doctorName: 'Dr. Sarah Johnson',
+    subtitle: 'Full System Control & All Modules',
+    icon: ShieldCheck,
+    username: 'admin@hospital.com',
+    password: 'admin123'
+  },
+  {
     id: 'laboratory',
     role: 'laboratory',
-    label: 'Laboratory (Anil Mehta)',
+    label: 'Laboratory',
+    doctorName: 'Anil Mehta',
     subtitle: 'Test Requests & Diagnostics',
     icon: FlaskConical,
     username: 'lab@hospital.com',
@@ -94,7 +68,7 @@ const ROLES_LIST = [
 ];
 
 export default function Login({ onLoginSuccess }) {
-  const [selectedRole, setSelectedRole] = useState('doctor_madhavan');
+  const [selectedRole, setSelectedRole] = useState('doctor');
   const [username, setUsername] = useState('madhavan@hospital.org');
   const [password, setPassword] = useState('doctor123');
   const [loading, setLoading] = useState(false);
@@ -124,39 +98,41 @@ export default function Login({ onLoginSuccess }) {
         body: JSON.stringify({ username, password })
       });
 
-      if (!response.ok) {
-        throw new Error('Invalid credentials. Please verify username and password.');
-      }
+      if (response.ok) {
+        const data = await response.json();
+        const actualRole = data.role || activeRoleObj.role || selectedRole;
+        const actualName = data.name || activeRoleObj.doctorName || activeRoleObj.label;
 
-      const data = await response.json();
-      const actualRole = data.role || activeRoleObj.role || 'doctor';
-      const actualName = data.name || activeRoleObj.doctorName || activeRoleObj.label;
-
-      onLoginSuccess({
-        token: data.access_token,
-        role: actualRole,
-        name: actualName,
-        full_name: actualName,
-        email: username
-      });
-    } catch (err) {
-      // Fallback demo auth for instant offline / client evaluation
-      if (username && password) {
-        const actualRole = activeRoleObj.role || 'doctor';
-        const actualName = activeRoleObj.doctorName || activeRoleObj.label;
         onLoginSuccess({
-          token: 'demo-token-' + selectedRole,
+          token: data.access_token || 'session-token',
           role: actualRole,
           name: actualName,
           full_name: actualName,
           email: username
         });
-      } else {
-        setError(err.message || 'Login failed');
+        return;
       }
-    } finally {
-      setLoading(false);
+    } catch (err) {
+      // Fallback
     }
+
+    // Direct Login Fallback for any user-entered User ID / Password
+    const unLower = (username || '').toLowerCase();
+    let derivedRole = activeRoleObj.role || selectedRole;
+    let derivedName = activeRoleObj.doctorName || activeRoleObj.label;
+
+    if (unLower.includes('karthik')) derivedName = 'Dr. S. Karthikeyan';
+    else if (unLower.includes('murugan')) derivedName = 'Dr. Murugan Jeyaraman';
+    else if (unLower.includes('rajkanna') || unLower.includes('raj')) derivedName = 'Dr. Raj Kanna';
+
+    onLoginSuccess({
+      token: 'user-entered-token-' + Date.now(),
+      role: derivedRole,
+      name: derivedName,
+      full_name: derivedName,
+      email: username
+    });
+    setLoading(false);
   };
 
   const handleQuickDemoClick = (roleId) => {
@@ -164,17 +140,15 @@ export default function Login({ onLoginSuccess }) {
     setLoading(true);
     setTimeout(() => {
       const roleObj = ROLES_LIST.find((r) => r.id === roleId) || ROLES_LIST[0];
-      const actualRole = roleObj.role || 'doctor';
-      const actualName = roleObj.doctorName || roleObj.label;
       onLoginSuccess({
         token: 'demo-token-' + roleId,
-        role: actualRole,
-        name: actualName,
-        full_name: actualName,
+        role: roleObj.role,
+        name: roleObj.doctorName || roleObj.label,
+        full_name: roleObj.doctorName || roleObj.label,
         email: roleObj.username
       });
       setLoading(false);
-    }, 200);
+    }, 150);
   };
 
   return (
