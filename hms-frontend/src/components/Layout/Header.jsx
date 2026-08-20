@@ -6,8 +6,17 @@ export default function Header({ onToggleMobileMenu, user: userProp, onLogout })
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
 
-  const savedUserStr = localStorage.getItem('hms_user');
-  const user = userProp || (savedUserStr ? JSON.parse(savedUserStr) : { name: 'Dr. Sarah Johnson', role: 'admin', email: 'admin@hospital.com' });
+  const user = userProp || (() => {
+    try {
+      const savedUserStr = localStorage.getItem('hms_user');
+      if (!savedUserStr) return null;
+      const parsed = JSON.parse(savedUserStr);
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch (e) {
+      localStorage.removeItem('hms_user');
+      return null;
+    }
+  })() || { name: 'Dr. Sarah Johnson', role: 'admin', email: 'admin@hospital.com' };
 
   const roleTitleMap = {
     admin: 'Chief Administrator',
