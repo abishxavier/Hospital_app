@@ -1245,7 +1245,8 @@ Confidential Medical Report. Hospital Seal Applied.
                 paginatedData.map((row, rowIdx) => (
                   <tr key={row.id || rowIdx} className="hover:bg-slate-50/70 transition-colors group">
                     {cols.map((col, colIdx) => {
-                      const val = row[col] || Object.values(row)[colIdx + 1] || 'N/A';
+                      const rawVal = row[col] !== undefined && row[col] !== null ? row[col] : Object.values(row)[colIdx + 1];
+                      const val = typeof rawVal === 'object' && rawVal !== null ? JSON.stringify(rawVal) : (rawVal !== undefined && rawVal !== null ? String(rawVal) : 'N/A');
                       const isStatusCol = col.toLowerCase().includes('status') || col.toLowerCase().includes('availability');
                       const isPainCol = col.toLowerCase().includes('pain');
 
@@ -1531,17 +1532,78 @@ const ProtectedRoute = ({ user, path, children }) => {
   if (!user) {
     return <Navigate to="/login" replace />;
   }
-  if (!isRouteAllowed(user.role, path)) {
-    return <Navigate to={getRoleDefaultRoute(user.role)} replace />;
+  const role = user.role || 'doctor';
+  if (!isRouteAllowed(role, path)) {
+    const defaultRoute = getRoleDefaultRoute(role);
+    if (defaultRoute === path) {
+      return children;
+    }
+    return <Navigate to={defaultRoute} replace />;
   }
   return children;
 };
 
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("HMS Boundary Catch:", error, errorInfo);
+  }
+
+  handleReset = () => {
+    localStorage.removeItem('hms_user');
+    window.location.href = '/login';
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-white font-sans">
+          <div className="bg-slate-800 border border-slate-700 p-8 rounded-3xl max-w-md w-full shadow-2xl text-center space-y-4">
+            <div className="w-14 h-14 bg-rose-500/20 text-rose-400 rounded-2xl flex items-center justify-center mx-auto border border-rose-500/30">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h2 className="text-xl font-bold text-slate-100">Session Reset Required</h2>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Click below to reset application state and return to Sign In cleanly.
+            </p>
+            <button
+              onClick={this.handleReset}
+              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm transition-all shadow-lg shadow-blue-600/30"
+            >
+              Reset Session & Sign In
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // Main Router App Component
 function App() {
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('hms_user');
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = localStorage.getItem('hms_user');
+      if (!saved) return null;
+      const parsed = JSON.parse(saved);
+      if (parsed && typeof parsed === 'object') {
+        if (!parsed.role) parsed.role = 'doctor';
+        return parsed;
+      }
+      return null;
+    } catch (e) {
+      localStorage.removeItem('hms_user');
+      return null;
+    }
   });
 
   const handleLoginSuccess = (userData) => {
@@ -1555,8 +1617,9 @@ function App() {
   };
 
   return (
-    <BrowserRouter>
-      <Routes>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Routes>
         <Route 
           path="/login" 
           element={
@@ -1642,6 +1705,7 @@ function App() {
         <Route path="*" element={user ? <Navigate to={getRoleDefaultRoute(user.role)} replace /> : <Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
+  </ErrorBoundary>
   );
 }
 
