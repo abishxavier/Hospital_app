@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   ChevronDown, 
   Heart, 
@@ -68,6 +69,7 @@ const ROLES_LIST = [
 ];
 
 export default function Login({ onLoginSuccess }) {
+  const navigate = useNavigate();
   const [selectedRole, setSelectedRole] = useState('doctor');
   const [username, setUsername] = useState('madhavan@hospital.org');
   const [password, setPassword] = useState('doctor123');
@@ -82,6 +84,25 @@ export default function Login({ onLoginSuccess }) {
       setPassword(roleObj.password);
     }
     setError('');
+  };
+
+  const handleCompleteLogin = (userData) => {
+    onLoginSuccess(userData);
+    setLoading(false);
+    
+    const r = String(userData.role || '').toLowerCase();
+    let target = '/doctor/appointments';
+    if (r.includes('doctor')) target = '/doctor/appointments';
+    else if (r.includes('reception')) target = '/reception/patient-registration';
+    else if (r.includes('lab')) target = '/laboratory/test-request';
+    else if (r.includes('nurse')) target = '/nurse/patient-vitals';
+    else if (r.includes('pharmacy')) target = '/pharmacy/medicine-inventory';
+    else if (r.includes('inpatient')) target = '/inpatient/room-allocation';
+    else if (r.includes('billing')) target = '/billing/consultation-charges';
+    else if (r.includes('portal')) target = '/portal/login';
+    else target = '/admin/dashboard';
+
+    navigate(target, { replace: true });
   };
 
   const handleSubmit = async (e) => {
@@ -103,7 +124,7 @@ export default function Login({ onLoginSuccess }) {
         const actualRole = data.role || activeRoleObj.role || selectedRole;
         const actualName = data.name || activeRoleObj.doctorName || activeRoleObj.label;
 
-        onLoginSuccess({
+        handleCompleteLogin({
           token: data.access_token || 'session-token',
           role: actualRole,
           name: actualName,
@@ -125,30 +146,26 @@ export default function Login({ onLoginSuccess }) {
     else if (unLower.includes('murugan')) derivedName = 'Dr. Murugan Jeyaraman';
     else if (unLower.includes('rajkanna') || unLower.includes('raj')) derivedName = 'Dr. Raj Kanna';
 
-    onLoginSuccess({
+    handleCompleteLogin({
       token: 'user-entered-token-' + Date.now(),
       role: derivedRole,
       name: derivedName,
       full_name: derivedName,
       email: username
     });
-    setLoading(false);
   };
 
   const handleQuickDemoClick = (roleId) => {
     handleRoleChange(roleId);
     setLoading(true);
-    setTimeout(() => {
-      const roleObj = ROLES_LIST.find((r) => r.id === roleId) || ROLES_LIST[0];
-      onLoginSuccess({
-        token: 'demo-token-' + roleId,
-        role: roleObj.role,
-        name: roleObj.doctorName || roleObj.label,
-        full_name: roleObj.doctorName || roleObj.label,
-        email: roleObj.username
-      });
-      setLoading(false);
-    }, 150);
+    const roleObj = ROLES_LIST.find((r) => r.id === roleId) || ROLES_LIST[0];
+    handleCompleteLogin({
+      token: 'demo-token-' + roleId,
+      role: roleObj.role,
+      name: roleObj.doctorName || roleObj.label,
+      full_name: roleObj.doctorName || roleObj.label,
+      email: roleObj.username
+    });
   };
 
   return (
