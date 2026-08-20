@@ -16,51 +16,87 @@ import {
 
 const ROLES_LIST = [
   {
+    id: 'doctor_madhavan',
+    role: 'doctor',
+    label: 'Dr. Madhavan (Cardiology)',
+    doctorName: 'Dr. Madhavan',
+    subtitle: 'Cardiology Specialist Appointments',
+    icon: Stethoscope,
+    username: 'madhavan@hospital.org',
+    password: 'doctor123'
+  },
+  {
+    id: 'doctor_karthikeyan',
+    role: 'doctor',
+    label: 'Dr. S. Karthikeyan (Neurology)',
+    doctorName: 'Dr. S. Karthikeyan',
+    subtitle: 'Neurology Consultation List',
+    icon: Stethoscope,
+    username: 'karthikeyan@hospital.org',
+    password: 'doctor123'
+  },
+  {
+    id: 'doctor_murugan',
+    role: 'doctor',
+    label: 'Dr. Murugan Jeyaraman (Pediatrics)',
+    doctorName: 'Dr. Murugan Jeyaraman',
+    subtitle: 'Pediatric Care & Appointments',
+    icon: Stethoscope,
+    username: 'murugan@hospital.org',
+    password: 'doctor123'
+  },
+  {
+    id: 'doctor_rajkanna',
+    role: 'doctor',
+    label: 'Dr. Raj Kanna (Orthopedics)',
+    doctorName: 'Dr. Raj Kanna',
+    subtitle: 'Orthopedic Consultations',
+    icon: Stethoscope,
+    username: 'rajkanna@hospital.org',
+    password: 'doctor123'
+  },
+  {
     id: 'admin',
-    label: 'Admin',
+    role: 'admin',
+    label: 'Admin (Dr. Sarah Johnson)',
     subtitle: 'Full System Control & All Modules',
     icon: ShieldCheck,
     username: 'admin@hospital.com',
-    password: 'admin'
-  },
-  {
-    id: 'doctor',
-    label: 'Doctor',
-    subtitle: 'Doctor Module & Clinical Records',
-    icon: Stethoscope,
-    username: 'doctor@hospital.com',
-    password: 'doctor'
+    password: 'admin123'
   },
   {
     id: 'nurse',
-    label: 'Nurse',
+    role: 'nurse',
+    label: 'Nurse (Selvi. V. Mary)',
     subtitle: 'Patient Vitals, Wards & Med Admin',
     icon: HeartPulse,
     username: 'nurse@hospital.com',
-    password: 'nurse'
+    password: 'nurse123'
   },
   {
     id: 'receptionist',
-    label: 'Hospital Receptionist',
+    role: 'receptionist',
+    label: 'Receptionist (Rajesh)',
     subtitle: 'Check-In, Appointments & Billing',
     icon: UserPlus,
     username: 'reception@hospital.com',
-    password: 'reception'
+    password: 'reception123'
   },
   {
     id: 'laboratory',
-    label: 'Laboratory',
+    role: 'laboratory',
+    label: 'Laboratory (Anil Mehta)',
     subtitle: 'Test Requests & Diagnostics',
     icon: FlaskConical,
     username: 'lab@hospital.com',
-    password: 'lab'
+    password: 'lab123'
   }
 ];
 
 export default function Login({ onLoginSuccess }) {
-  const [selectedRole, setSelectedRole] = useState('doctor');
-  const [username, setUsername] = useState('doctor@hospital.com');
-  const [password, setPassword] = useState('doctor');
+  const [selectedRole, setSelectedRole] = useState('doctor_madhavan');
+  const [username, setUsername] = useState('madhavan@hospital.org');
+  const [password, setPassword] = useState('doctor123');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -93,19 +129,26 @@ export default function Login({ onLoginSuccess }) {
       }
 
       const data = await response.json();
+      const actualRole = data.role || activeRoleObj.role || 'doctor';
+      const actualName = data.name || activeRoleObj.doctorName || activeRoleObj.label;
+
       onLoginSuccess({
         token: data.access_token,
-        role: data.role || selectedRole,
-        name: data.name || activeRoleObj.label + ' User',
+        role: actualRole,
+        name: actualName,
+        full_name: actualName,
         email: username
       });
     } catch (err) {
       // Fallback demo auth for instant offline / client evaluation
       if (username && password) {
+        const actualRole = activeRoleObj.role || 'doctor';
+        const actualName = activeRoleObj.doctorName || activeRoleObj.label;
         onLoginSuccess({
           token: 'demo-token-' + selectedRole,
-          role: selectedRole,
-          name: activeRoleObj.label + ' Account',
+          role: actualRole,
+          name: actualName,
+          full_name: actualName,
           email: username
         });
       } else {
@@ -120,12 +163,15 @@ export default function Login({ onLoginSuccess }) {
     handleRoleChange(roleId);
     setLoading(true);
     setTimeout(() => {
-      const roleObj = ROLES_LIST.find((r) => r.id === roleId);
+      const roleObj = ROLES_LIST.find((r) => r.id === roleId) || ROLES_LIST[0];
+      const actualRole = roleObj.role || 'doctor';
+      const actualName = roleObj.doctorName || roleObj.label;
       onLoginSuccess({
         token: 'demo-token-' + roleId,
-        role: roleId,
-        name: roleObj ? roleObj.label + ' User' : 'User',
-        email: roleObj ? roleObj.username : 'user@hospital.com'
+        role: actualRole,
+        name: actualName,
+        full_name: actualName,
+        email: roleObj.username
       });
       setLoading(false);
     }, 200);

@@ -11,18 +11,37 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.post("/login", response_model=Token)
 def login(request: LoginRequest, db: Session = Depends(get_db)):
     DEMO_USERS = {
-        "admin@hospital.com": {"name": "Dr. Sarah Johnson", "role": "admin", "password": "admin"},
-        "admin": {"name": "Dr. Sarah Johnson", "role": "admin", "password": "admin"},
-        "doctor@hospital.com": {"name": "Dr. Priya Nair", "role": "doctor", "password": "doctor"},
-        "doctor": {"name": "Dr. Priya Nair", "role": "doctor", "password": "doctor"},
-        "reception@hospital.com": {"name": "Sunita Sharma", "role": "receptionist", "password": "reception"},
-        "reception": {"name": "Sunita Sharma", "role": "receptionist", "password": "reception"},
-        "receptionist@hospital.com": {"name": "Sunita Sharma", "role": "receptionist", "password": "reception"},
-        "lab@hospital.com": {"name": "Anil Mehta", "role": "laboratory", "password": "lab"},
-        "lab": {"name": "Anil Mehta", "role": "laboratory", "password": "lab"},
-        "laboratory@hospital.com": {"name": "Anil Mehta", "role": "laboratory", "password": "lab"},
-        "nurse@hospital.com": {"name": "Nurse Sunita Rao", "role": "nurse", "password": "nurse"},
-        "nurse": {"name": "Nurse Sunita Rao", "role": "nurse", "password": "nurse"}
+        "admin@hospital.com": {"name": "Dr. Sarah Johnson", "role": "admin", "password": "admin123"},
+        "admin": {"name": "Dr. Sarah Johnson", "role": "admin", "password": "admin123"},
+        
+        # 5 Doctors
+        "madhavan@hospital.org": {"name": "Dr. Madhavan", "role": "doctor", "password": "doctor123"},
+        "doctor@hospital.com": {"name": "Dr. Madhavan", "role": "doctor", "password": "doctor123"},
+        "doctor": {"name": "Dr. Madhavan", "role": "doctor", "password": "doctor123"},
+        "karthikeyan@hospital.org": {"name": "Dr. S. Karthikeyan", "role": "doctor", "password": "doctor123"},
+        "murugan@hospital.org": {"name": "Dr. Murugan Jeyaraman", "role": "doctor", "password": "doctor123"},
+        "rajkanna@hospital.org": {"name": "Dr. Raj Kanna", "role": "doctor", "password": "doctor123"},
+        "priyanair@hospital.org": {"name": "Dr. Priya Nair", "role": "doctor", "password": "doctor123"},
+
+        # 5 Nurses
+        "nurse@hospital.com": {"name": "Selvi. V. Mary", "role": "nurse", "password": "nurse123"},
+        "nurse": {"name": "Selvi. V. Mary", "role": "nurse", "password": "nurse123"},
+        "selvi.mary@hospital.org": {"name": "Selvi. V. Mary", "role": "nurse", "password": "nurse123"},
+        "kavitha.r@hospital.org": {"name": "Kavitha. R.", "role": "nurse", "password": "nurse123"},
+        "lakshmi.p@hospital.org": {"name": "Lakshmi. P", "role": "nurse", "password": "nurse123"},
+        "priya.s@hospital.org": {"name": "Priya. S", "role": "nurse", "password": "nurse123"},
+        "anandhi.k@hospital.org": {"name": "Anandhi. K", "role": "nurse", "password": "nurse123"},
+
+        # 2 Receptionists
+        "reception@hospital.com": {"name": "Rajesh", "role": "receptionist", "password": "reception123"},
+        "reception": {"name": "Rajesh", "role": "receptionist", "password": "reception123"},
+        "rajesh@hospital.org": {"name": "Rajesh", "role": "receptionist", "password": "reception123"},
+        "pooja.v@hospital.org": {"name": "Pooja Venkatesh", "role": "receptionist", "password": "reception123"},
+
+        # Lab Tech & Pharmacist
+        "lab@hospital.com": {"name": "Anil Mehta", "role": "laboratory", "password": "lab123"},
+        "lab": {"name": "Anil Mehta", "role": "laboratory", "password": "lab123"},
+        "pharmacy123@hospital.org": {"name": "Vikram Singh", "role": "pharmacy", "password": "pharmacy123"}
     }
 
     user = db.query(User).filter(User.email == request.username).first()
@@ -49,7 +68,7 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     # Demo fallback authentication
     if request.username in DEMO_USERS:
         demo = DEMO_USERS[request.username]
-        if request.password in [demo["password"], f"{demo['password']}123", "admin", "demo"]:
+        if request.password in [demo["password"], f"{demo['password']}123", "doctor123", "doctor", "admin123", "admin", "nurse123", "reception123", "demo"]:
             token = create_access_token({"sub": request.username, "role": demo["role"]})
             return Token(access_token=token, role=demo["role"], name=demo["name"])
 

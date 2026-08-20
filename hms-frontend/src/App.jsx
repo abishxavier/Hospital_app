@@ -632,7 +632,16 @@ const GenericPage = ({ title, description, cols, defaultData = [], apiEndpoint, 
   useEffect(() => {
     if (apiEndpoint) {
       setLoading(true);
-      fetch(apiEndpoint)
+      const userObj = JSON.parse(localStorage.getItem('hms_user') || '{}');
+      let url = apiEndpoint;
+      const isDoctorUser = userObj?.role === 'doctor';
+      const doctorName = userObj?.full_name || userObj?.name;
+      if (isDoctorUser && doctorName) {
+        const separator = url.includes('?') ? '&' : '?';
+        url = `${url}${separator}doctor_name=${encodeURIComponent(doctorName)}`;
+      }
+
+      fetch(url)
         .then((res) => {
           if (res.ok) return res.json();
           throw new Error('API fetch failed');
