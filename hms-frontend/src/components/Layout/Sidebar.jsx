@@ -143,19 +143,19 @@ export default function Sidebar({ isOpenMobile, onCloseMobile, userRole: userRol
   const activeRole = userRoleProp || (savedUserStr ? JSON.parse(savedUserStr).role : 'admin');
 
   const visibleModules = React.useMemo(() => {
-    const role = String(activeRole || '').toLowerCase();
-    if (role === 'admin') return MODULES;
-    if (role === 'doctor') return MODULES.filter(m => m.id === 'doctor');
-    if (role === 'receptionist' || role === 'reception') {
+    const r = String(activeRole || '').toLowerCase();
+    if (r === 'admin' || r.includes('admin')) return MODULES;
+    if (r.includes('doctor')) return MODULES.filter(m => m.id === 'doctor');
+    if (r.includes('reception')) {
       return MODULES.filter(m => m.id === 'reception' || m.id === 'billing');
     }
-    if (role === 'laboratory' || role === 'lab') {
+    if (r.includes('lab') || r.includes('laboratory')) {
       return MODULES.filter(m => m.id === 'laboratory');
     }
-    if (role === 'nurse') return MODULES.filter(m => m.id === 'nurse');
-    if (role === 'pharmacy') return MODULES.filter(m => m.id === 'pharmacy');
-    if (role === 'inpatient') return MODULES.filter(m => m.id === 'inpatient');
-    if (role === 'portal') return MODULES.filter(m => m.id === 'portal');
+    if (r.includes('nurse')) return MODULES.filter(m => m.id === 'nurse');
+    if (r.includes('pharmacy')) return MODULES.filter(m => m.id === 'pharmacy');
+    if (r.includes('inpatient')) return MODULES.filter(m => m.id === 'inpatient');
+    if (r.includes('portal')) return MODULES.filter(m => m.id === 'portal');
     return MODULES;
   }, [activeRole]);
 

@@ -1503,27 +1503,27 @@ const MedicalHistory = () => <GenericPage title="Medical History" description="P
 
 const getRoleDefaultRoute = (role) => {
   const r = String(role || '').toLowerCase();
-  if (r === 'doctor') return '/doctor/appointments';
-  if (r === 'receptionist' || r === 'reception') return '/reception/patient-registration';
-  if (r === 'laboratory' || r === 'lab') return '/laboratory/test-request';
-  if (r === 'nurse') return '/nurse/patient-vitals';
-  if (r === 'pharmacy') return '/pharmacy/medicine-inventory';
-  if (r === 'inpatient') return '/inpatient/room-allocation';
-  if (r === 'billing') return '/billing/consultation-charges';
-  if (r === 'portal') return '/portal/login';
+  if (r.includes('doctor')) return '/doctor/appointments';
+  if (r.includes('reception')) return '/reception/patient-registration';
+  if (r.includes('lab') || r.includes('laboratory')) return '/laboratory/test-request';
+  if (r.includes('nurse')) return '/nurse/patient-vitals';
+  if (r.includes('pharmacy')) return '/pharmacy/medicine-inventory';
+  if (r.includes('inpatient')) return '/inpatient/room-allocation';
+  if (r.includes('billing')) return '/billing/consultation-charges';
+  if (r.includes('portal')) return '/portal/login';
   return '/admin/dashboard';
 };
 
 const isRouteAllowed = (role, path) => {
   const r = String(role || '').toLowerCase();
-  if (r === 'admin') return true;
-  if (r === 'doctor') return path.startsWith('/doctor');
-  if (r === 'receptionist' || r === 'reception') return path.startsWith('/reception') || path.startsWith('/billing');
-  if (r === 'laboratory' || r === 'lab') return path.startsWith('/laboratory');
-  if (r === 'nurse') return path.startsWith('/nurse');
-  if (r === 'pharmacy') return path.startsWith('/pharmacy');
-  if (r === 'inpatient') return path.startsWith('/inpatient');
-  if (r === 'portal') return path.startsWith('/portal');
+  if (r === 'admin' || r.includes('admin')) return true;
+  if (r.includes('doctor')) return path.startsWith('/doctor');
+  if (r.includes('reception')) return path.startsWith('/reception') || path.startsWith('/billing');
+  if (r.includes('lab') || r.includes('laboratory')) return path.startsWith('/laboratory');
+  if (r.includes('nurse')) return path.startsWith('/nurse');
+  if (r.includes('pharmacy')) return path.startsWith('/pharmacy');
+  if (r.includes('inpatient')) return path.startsWith('/inpatient');
+  if (r.includes('portal')) return path.startsWith('/portal');
   return false;
 };
 
