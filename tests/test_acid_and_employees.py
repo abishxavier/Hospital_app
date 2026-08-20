@@ -89,23 +89,23 @@ def test_acid_consistency_foreign_key(setup_db):
 
 def test_seeded_personnel_counts(setup_db):
     db = setup_db
-    # 4 Doctors
+    # 5 Doctors
     doctors = db.query(Doctor).all()
-    assert len(doctors) == 4, f"Expected 4 doctors, found {len(doctors)}"
+    assert len(doctors) == 5, f"Expected 5 doctors, found {len(doctors)}"
     doc_ids = {d.employee_id for d in doctors}
-    assert doc_ids == {"EMP-1001", "EMP-1002", "EMP-1003", "EMP-1004"}
+    assert doc_ids == {"EMP-1001", "EMP-1002", "EMP-1003", "EMP-1004", "EMP-1005"}
 
     # 5 Nurses
     nurses = db.query(Staff).filter(Staff.role.like("%Nurse%")).all()
     assert len(nurses) == 5, f"Expected 5 nurses, found {len(nurses)}"
     nurse_ids = {n.employee_id for n in nurses}
-    assert nurse_ids == {"EMP-1005", "EMP-1006", "EMP-1007", "EMP-1008", "EMP-1009"}
+    assert nurse_ids == {"EMP-1006", "EMP-1007", "EMP-1008", "EMP-1009", "EMP-1010"}
 
     # 2 Receptionists
     receptionists = db.query(Staff).filter(Staff.role.like("%Reception%")).all()
     assert len(receptionists) == 2, f"Expected 2 receptionists, found {len(receptionists)}"
     rec_ids = {r.employee_id for r in receptionists}
-    assert rec_ids == {"EMP-1010", "EMP-1011"}
+    assert rec_ids == {"EMP-1011", "EMP-1012"}
 
     # 8 Patients
     patients = db.query(Patient).all()

@@ -30,32 +30,48 @@ def seed_database(db: Session):
         db.add_all(depts)
         db.commit()
 
-    # 2. Users (Admin, 4 Doctors, 5 Nurses, 2 Receptionists, Lab, Pharmacy)
+    # 2. Users (Admin, 5 Doctors, 5 Nurses, 2 Receptionists, Lab, Pharmacy, 8 Patients)
     if db.query(User).count() == 0:
         users = [
+            # Admin
             User(employee_id="EMP-1000", full_name="Dr. Sarah Johnson", email="admin@hospital.com", password_hash=hash_password("admin123"), role="admin"),
-            # 4 Doctors
+            
+            # 5 Doctors (Individual Logins)
             User(employee_id="EMP-1001", full_name="Dr. Madhavan", email="doctor@hospital.com", password_hash=hash_password("doctor123"), role="doctor"),
             User(employee_id="EMP-1002", full_name="Dr. S. Karthikeyan", email="karthikeyan@hospital.org", password_hash=hash_password("doctor123"), role="doctor"),
             User(employee_id="EMP-1003", full_name="Dr. Murugan Jeyaraman", email="murugan@hospital.org", password_hash=hash_password("doctor123"), role="doctor"),
             User(employee_id="EMP-1004", full_name="Dr. Raj Kanna", email="rajkanna@hospital.org", password_hash=hash_password("doctor123"), role="doctor"),
-            # 5 Nurses
-            User(employee_id="EMP-1005", full_name="Selvi. V. Mary", email="nurse@hospital.com", password_hash=hash_password("nurse123"), role="nurse"),
-            User(employee_id="EMP-1006", full_name="Kavitha. R.", email="kavitha.r@hospital.org", password_hash=hash_password("nurse123"), role="nurse"),
-            User(employee_id="EMP-1007", full_name="Lakshmi. P", email="lakshmi.p@hospital.org", password_hash=hash_password("nurse123"), role="nurse"),
-            User(employee_id="EMP-1008", full_name="Priya. S", email="priya.s@hospital.org", password_hash=hash_password("nurse123"), role="nurse"),
-            User(employee_id="EMP-1009", full_name="Anandhi. K", email="anandhi.k@hospital.org", password_hash=hash_password("nurse123"), role="nurse"),
-            # 2 Receptionists
-            User(employee_id="EMP-1010", full_name="Rajesh", email="reception@hospital.com", password_hash=hash_password("reception123"), role="reception"),
-            User(employee_id="EMP-1011", full_name="Pooja Venkatesh", email="pooja.v@hospital.org", password_hash=hash_password("reception123"), role="reception"),
+            User(employee_id="EMP-1005", full_name="Dr. Priya Nair", email="priyanair@hospital.org", password_hash=hash_password("doctor123"), role="doctor"),
+            
+            # 5 Nurses (Individual Logins)
+            User(employee_id="EMP-1006", full_name="Selvi. V. Mary", email="nurse@hospital.com", password_hash=hash_password("nurse123"), role="nurse"),
+            User(employee_id="EMP-1007", full_name="Kavitha. R.", email="kavitha.r@hospital.org", password_hash=hash_password("nurse123"), role="nurse"),
+            User(employee_id="EMP-1008", full_name="Lakshmi. P", email="lakshmi.p@hospital.org", password_hash=hash_password("nurse123"), role="nurse"),
+            User(employee_id="EMP-1009", full_name="Priya. S", email="priya.s@hospital.org", password_hash=hash_password("nurse123"), role="nurse"),
+            User(employee_id="EMP-1010", full_name="Anandhi. K", email="anandhi.k@hospital.org", password_hash=hash_password("nurse123"), role="nurse"),
+            
+            # 2 Receptionists (Individual Logins)
+            User(employee_id="EMP-1011", full_name="Rajesh", email="reception@hospital.com", password_hash=hash_password("reception123"), role="reception"),
+            User(employee_id="EMP-1012", full_name="Pooja Venkatesh", email="pooja.v@hospital.org", password_hash=hash_password("reception123"), role="reception"),
+            
             # Lab Tech & Pharmacist
-            User(employee_id="EMP-1012", full_name="Anil Mehta", email="lab@hospital.com", password_hash=hash_password("lab123"), role="laboratory"),
-            User(employee_id="EMP-1013", full_name="Vikram Singh", email="pharmacy123@hospital.org", password_hash=hash_password("pharmacy123"), role="pharmacy"),
+            User(employee_id="EMP-1013", full_name="Anil Mehta", email="lab@hospital.com", password_hash=hash_password("lab123"), role="laboratory"),
+            User(employee_id="EMP-1014", full_name="Vikram Singh", email="pharmacy123@hospital.org", password_hash=hash_password("pharmacy123"), role="pharmacy"),
+
+            # 8 Patients (Individual Logins)
+            User(employee_id="PAT-2001", full_name="Aarav", email="aarav@patient.com", password_hash=hash_password("patient123"), role="patient"),
+            User(employee_id="PAT-2002", full_name="Ishaan", email="ishaan@patient.com", password_hash=hash_password("patient123"), role="patient"),
+            User(employee_id="PAT-2003", full_name="Rahul", email="rahul@patient.com", password_hash=hash_password("patient123"), role="patient"),
+            User(employee_id="PAT-2004", full_name="Tanvi", email="tanvi@patient.com", password_hash=hash_password("patient123"), role="patient"),
+            User(employee_id="PAT-2005", full_name="Karthik", email="karthik@patient.com", password_hash=hash_password("patient123"), role="patient"),
+            User(employee_id="PAT-2006", full_name="Srinivas", email="srinivas@patient.com", password_hash=hash_password("patient123"), role="patient"),
+            User(employee_id="PAT-2007", full_name="Ananya", email="ananya@patient.com", password_hash=hash_password("patient123"), role="patient"),
+            User(employee_id="PAT-2008", full_name="Deepika", email="deepika@patient.com", password_hash=hash_password("patient123"), role="patient"),
         ]
         db.add_all(users)
         db.commit()
 
-    # 3. Doctors (4 Doctors with unique employee_id)
+    # 3. Doctors (5 Doctors with unique employee_id)
     if db.query(Doctor).count() == 0:
         cardio = db.query(Department).filter(Department.name == "Cardiology").first()
         neuro = db.query(Department).filter(Department.name == "Neurology").first()
@@ -67,6 +83,7 @@ def seed_database(db: Session):
             Doctor(employee_id="EMP-1002", full_name="Dr. S. Karthikeyan", specialization="Neurology", phone="+91 98765 67890", availability="Available", department_id=neuro.id if neuro else None),
             Doctor(employee_id="EMP-1003", full_name="Dr. Murugan Jeyaraman", specialization="Pediatrics", phone="+91 98765 23456", availability="Available", department_id=pedia.id if pedia else None),
             Doctor(employee_id="EMP-1004", full_name="Dr. Raj Kanna", specialization="Orthopedics", phone="+91 98765 34567", availability="Available", department_id=ortho.id if ortho else None),
+            Doctor(employee_id="EMP-1005", full_name="Dr. Priya Nair", specialization="General Medicine", phone="+91 98765 45678", availability="Available", department_id=cardio.id if cardio else None),
         ]
         db.add_all(doctors)
         db.commit()
@@ -75,14 +92,14 @@ def seed_database(db: Session):
     if db.query(Staff).count() == 0:
         staff_list = [
             # 5 Nurses
-            Staff(employee_id="EMP-1005", full_name="Selvi. V. Mary", role="Head Nurse - ICU", shift="Morning Shift", phone="+91 91111 22222", status="Active"),
-            Staff(employee_id="EMP-1006", full_name="Kavitha. R.", role="OPD Nurse", shift="Morning Shift", phone="+91 91111 33333", status="Active"),
-            Staff(employee_id="EMP-1007", full_name="Lakshmi. P", role="IPD Ward Nurse", shift="Evening Shift", phone="+91 91111 44444", status="Active"),
-            Staff(employee_id="EMP-1008", full_name="Priya. S", role="Pediatric Nurse", shift="Day Shift", phone="+91 91111 55555", status="Active"),
-            Staff(employee_id="EMP-1009", full_name="Anandhi. K", role="Emergency Nurse", shift="Night Shift", phone="+91 91111 66666", status="Active"),
+            Staff(employee_id="EMP-1006", full_name="Selvi. V. Mary", role="Head Nurse - ICU", shift="Morning Shift", phone="+91 91111 22222", status="Active"),
+            Staff(employee_id="EMP-1007", full_name="Kavitha. R.", role="OPD Nurse", shift="Morning Shift", phone="+91 91111 33333", status="Active"),
+            Staff(employee_id="EMP-1008", full_name="Lakshmi. P", role="IPD Ward Nurse", shift="Evening Shift", phone="+91 91111 44444", status="Active"),
+            Staff(employee_id="EMP-1009", full_name="Priya. S", role="Pediatric Nurse", shift="Day Shift", phone="+91 91111 55555", status="Active"),
+            Staff(employee_id="EMP-1010", full_name="Anandhi. K", role="Emergency Nurse", shift="Night Shift", phone="+91 91111 66666", status="Active"),
             # 2 Receptionists
-            Staff(employee_id="EMP-1010", full_name="Rajesh", role="Chief Reception Officer", shift="Morning Shift", phone="+91 95555 11111", status="Active"),
-            Staff(employee_id="EMP-1011", full_name="Pooja Venkatesh", role="Shift Reception Officer", shift="Evening Shift", phone="+91 95555 66666", status="Active"),
+            Staff(employee_id="EMP-1011", full_name="Rajesh", role="Chief Reception Officer", shift="Morning Shift", phone="+91 95555 11111", status="Active"),
+            Staff(employee_id="EMP-1012", full_name="Pooja Venkatesh", role="Shift Reception Officer", shift="Evening Shift", phone="+91 95555 66666", status="Active"),
         ]
         db.add_all(staff_list)
         db.commit()
@@ -90,14 +107,14 @@ def seed_database(db: Session):
     # 5. Patients (8 Patients with unique patient_id, disease, and typical pain scale 1-10)
     if db.query(Patient).count() == 0:
         patients = [
-            Patient(patient_id="PAT-2001", patient_code="PAT-2001", full_name="Aarav", phone="+91 98765 43210", email="aarav@email.com", gender="Male", blood_group="O+", disease="Diabetes", pain_scale=3, status="Active"),
-            Patient(patient_id="PAT-2002", patient_code="PAT-2002", full_name="Ishaan", phone="+91 91234 56780", email="ishaan@email.com", gender="Male", blood_group="A+", disease="Hypertension", pain_scale=2, status="Active"),
-            Patient(patient_id="PAT-2003", patient_code="PAT-2003", full_name="Rahul", phone="+91 98111 22233", email="rahul@email.com", gender="Male", blood_group="B+", disease="Asthma", pain_scale=5, status="Active"),
-            Patient(patient_id="PAT-2004", patient_code="PAT-2004", full_name="Tanvi", phone="+91 97444 55566", email="tanvi@email.com", gender="Female", blood_group="AB+", disease="Pneumonia", pain_scale=7, status="Active"),
-            Patient(patient_id="PAT-2005", patient_code="PAT-2005", full_name="Karthik", phone="+91 96333 44455", email="karthik@email.com", gender="Male", blood_group="O-", disease="Tuberculosis", pain_scale=6, status="Active"),
-            Patient(patient_id="PAT-2006", patient_code="PAT-2006", full_name="Srinivas", phone="+91 95222 33344", email="srinivas@email.com", gender="Male", blood_group="A-", disease="Malaria", pain_scale=6, status="Active"),
-            Patient(patient_id="PAT-2007", patient_code="PAT-2007", full_name="Ananya", phone="+91 94111 22233", email="ananya@email.com", gender="Female", blood_group="B-", disease="Dengue", pain_scale=7, status="Active"),
-            Patient(patient_id="PAT-2008", patient_code="PAT-2008", full_name="Deepika", phone="+91 93000 11122", email="deepika@email.com", gender="Female", blood_group="AB-", disease="Typhoid", pain_scale=5, status="Active"),
+            Patient(patient_id="PAT-2001", patient_code="PAT-2001", full_name="Aarav", phone="+91 98765 43210", email="aarav@patient.com", gender="Male", blood_group="O+", disease="Diabetes", pain_scale=3, status="Active"),
+            Patient(patient_id="PAT-2002", patient_code="PAT-2002", full_name="Ishaan", phone="+91 91234 56780", email="ishaan@patient.com", gender="Male", blood_group="A+", disease="Hypertension", pain_scale=2, status="Active"),
+            Patient(patient_id="PAT-2003", patient_code="PAT-2003", full_name="Rahul", phone="+91 98111 22233", email="rahul@patient.com", gender="Male", blood_group="B+", disease="Asthma", pain_scale=5, status="Active"),
+            Patient(patient_id="PAT-2004", patient_code="PAT-2004", full_name="Tanvi", phone="+91 97444 55566", email="tanvi@patient.com", gender="Female", blood_group="AB+", disease="Pneumonia", pain_scale=7, status="Active"),
+            Patient(patient_id="PAT-2005", patient_code="PAT-2005", full_name="Karthik", phone="+91 96333 44455", email="karthik@patient.com", gender="Male", blood_group="O-", disease="Tuberculosis", pain_scale=6, status="Active"),
+            Patient(patient_id="PAT-2006", patient_code="PAT-2006", full_name="Srinivas", phone="+91 95222 33344", email="srinivas@patient.com", gender="Male", blood_group="A-", disease="Malaria", pain_scale=6, status="Active"),
+            Patient(patient_id="PAT-2007", patient_code="PAT-2007", full_name="Ananya", phone="+91 94111 22233", email="ananya@patient.com", gender="Female", blood_group="B-", disease="Dengue", pain_scale=7, status="Active"),
+            Patient(patient_id="PAT-2008", patient_code="PAT-2008", full_name="Deepika", phone="+91 93000 11122", email="deepika@patient.com", gender="Female", blood_group="AB-", disease="Typhoid", pain_scale=5, status="Active"),
         ]
         db.add_all(patients)
         db.commit()

@@ -64,8 +64,24 @@ const getPainLevelInfo = (val) => {
   if (typeof val === 'number') {
     score = val;
   } else if (val) {
-    const match = String(val).match(/\d+/);
-    score = match ? parseInt(match[0], 10) : 3;
+    const str = String(val).trim();
+    // 1. Check for "X/10" format first (e.g. "7/10")
+    const matchSlash = str.match(/(\d+)\s*\/\s*10/);
+    if (matchSlash) {
+      score = parseInt(matchSlash[1], 10);
+    } else {
+      // 2. Check for standalone single/double digit 0-10 (prevents PAT-2007 matching 2007)
+      const matchStandalone = str.match(/\b(10|[0-9])\b/);
+      if (matchStandalone) {
+        score = parseInt(matchStandalone[1], 10);
+      } else {
+        const matchAny = str.match(/\d+/);
+        if (matchAny) {
+          const parsed = parseInt(matchAny[0], 10);
+          score = parsed <= 10 ? parsed : 3;
+        }
+      }
+    }
   }
   if (score > 10) score = 10;
   if (score < 0) score = 0;
@@ -102,12 +118,12 @@ const WongBakerPainScaleSelector = ({ value, onChange }) => {
   const currentScore = info.score;
 
   const faces = [
-    { val: 0, emoji: '😊', topLabel: 'No pain', bottomLabel: 'No pain', color: 'border-emerald-500 text-emerald-600 bg-emerald-50' },
-    { val: 2, emoji: '🙂', topLabel: 'Discomforting', bottomLabel: 'Very mild', color: 'border-lime-500 text-lime-600 bg-lime-50' },
-    { val: 4, emoji: '😐', topLabel: 'Distressing', bottomLabel: 'Tolerable', color: 'border-amber-500 text-amber-600 bg-amber-50' },
-    { val: 6, emoji: '🙁', topLabel: 'Intense', bottomLabel: 'Very distressing', color: 'border-orange-500 text-orange-600 bg-orange-50' },
-    { val: 8, emoji: '😣', topLabel: 'Utterly horrible', bottomLabel: 'Very intense', color: 'border-rose-500 text-rose-600 bg-rose-50' },
-    { val: 10, emoji: '😭', topLabel: 'Unimaginable', bottomLabel: 'Excruciating', color: 'border-red-600 text-red-700 bg-red-50' }
+    { minScore: 0, maxScore: 0, defaultVal: 0, emoji: '😊', topLabel: 'No pain', label: '0/10', color: 'border-emerald-500 text-emerald-600 bg-emerald-50' },
+    { minScore: 1, maxScore: 2, defaultVal: 2, emoji: '🙂', topLabel: 'Discomforting', label: '1-2/10', color: 'border-lime-500 text-lime-600 bg-lime-50' },
+    { minScore: 3, maxScore: 4, defaultVal: 4, emoji: '😐', topLabel: 'Distressing', label: '3-4/10', color: 'border-amber-500 text-amber-600 bg-amber-50' },
+    { minScore: 5, maxScore: 6, defaultVal: 6, emoji: '🙁', topLabel: 'Intense', label: '5-6/10', color: 'border-orange-500 text-orange-600 bg-orange-50' },
+    { minScore: 7, maxScore: 8, defaultVal: 7, emoji: '😣', topLabel: 'Utterly horrible', label: '7-8/10', color: 'border-rose-500 text-rose-600 bg-rose-50' },
+    { minScore: 9, maxScore: 10, defaultVal: 9, emoji: '😭', topLabel: 'Unimaginable', label: '9-10/10', color: 'border-red-600 text-red-700 bg-red-50' }
   ];
 
   return (
@@ -129,18 +145,21 @@ const WongBakerPainScaleSelector = ({ value, onChange }) => {
       {/* Faces Grid */}
       <div className="grid grid-cols-6 gap-1.5 text-center">
         {faces.map((f, fIdx) => {
-          const isSelected = (f.val === 0 && currentScore === 0) ||
-            (f.val === 2 && currentScore >= 1 && currentScore <= 2) ||
-            (f.val === 4 && currentScore >= 3 && currentScore <= 4) ||
-            (f.val === 6 && currentScore >= 5 && currentScore <= 6) ||
-            (f.val === 8 && currentScore >= 7 && currentScore <= 8) ||
-            (f.val === 10 && currentScore >= 9 && currentScore <= 10);
+          const isSelected = currentScore >= f.minScore && currentScore <= f.maxScore;
+
+          const handleFaceClick = () => {
+            if (currentScore >= f.minScore && currentScore <= f.maxScore) {
+              onChange(`${currentScore}/10`);
+            } else {
+              onChange(`${f.defaultVal}/10`);
+            }
+          };
 
           return (
             <button
               key={fIdx}
               type="button"
-              onClick={() => onChange(`${f.val}/10`)}
+              onClick={handleFaceClick}
               className={`flex flex-col items-center p-2 rounded-xl border transition-all ${
                 isSelected
                   ? `${f.color} ring-2 ring-blue-500 shadow-md scale-105 font-bold`
@@ -149,7 +168,7 @@ const WongBakerPainScaleSelector = ({ value, onChange }) => {
             >
               <span className="text-xl sm:text-2xl mb-1">{f.emoji}</span>
               <span className="text-[10px] font-bold leading-tight hidden sm:block">{f.topLabel}</span>
-              <span className="text-[9px] text-slate-400 mt-0.5">{f.val}/10</span>
+              <span className="text-[9px] text-slate-400 mt-0.5">{f.label}</span>
             </button>
           );
         })}
