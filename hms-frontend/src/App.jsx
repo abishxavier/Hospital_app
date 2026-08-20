@@ -1559,11 +1559,11 @@ const ProtectedRoute = ({ user, path, children }) => {
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, error: null };
   }
 
-  static getDerivedStateFromError() {
-    return { hasError: true };
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
   }
 
   componentDidCatch(error, errorInfo) {
@@ -1571,15 +1571,16 @@ class ErrorBoundary extends React.Component {
   }
 
   handleReset = () => {
-    localStorage.removeItem('hms_user');
+    localStorage.clear();
     window.location.href = '/login';
   };
 
   render() {
     if (this.state.hasError) {
+      const errMsg = this.state.error ? (this.state.error.message || String(this.state.error)) : '';
       return (
         <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-white font-sans">
-          <div className="bg-slate-800 border border-slate-700 p-8 rounded-3xl max-w-md w-full shadow-2xl text-center space-y-4">
+          <div className="bg-slate-800 border border-slate-700 p-8 rounded-3xl max-w-lg w-full shadow-2xl text-center space-y-4">
             <div className="w-14 h-14 bg-rose-500/20 text-rose-400 rounded-2xl flex items-center justify-center mx-auto border border-rose-500/30">
               <AlertCircle className="w-8 h-8" />
             </div>
@@ -1587,6 +1588,12 @@ class ErrorBoundary extends React.Component {
             <p className="text-xs text-slate-400 leading-relaxed">
               Click below to reset application state and return to Sign In cleanly.
             </p>
+            {errMsg && (
+              <div className="bg-slate-950/80 text-rose-300 p-3 rounded-xl text-left font-mono text-[11px] break-words border border-rose-900/50 max-h-40 overflow-y-auto">
+                <span className="font-bold text-rose-400 block mb-1">Runtime Exception:</span>
+                {errMsg}
+              </div>
+            )}
             <button
               onClick={this.handleReset}
               className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm transition-all shadow-lg shadow-blue-600/30"
