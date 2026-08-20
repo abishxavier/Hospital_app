@@ -1560,7 +1560,7 @@ function App() {
         <Route 
           path="/login" 
           element={
-            user ? <Navigate to={getRoleDefaultRoute(user.role)} replace /> : <Login onLoginSuccess={handleLoginSuccess} />
+            <Login onLoginSuccess={handleLoginSuccess} />
           } 
         />
 
