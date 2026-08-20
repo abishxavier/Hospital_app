@@ -12,15 +12,24 @@ router = APIRouter(prefix="/patients", tags=["patients"])
 def list_patients(db: Session = Depends(get_db)):
     patients = db.query(Patient).filter(Patient.status != "Deleted").all()
     result = []
-    for p in patients:
+    doctors_list = [
+        "Dr. Madhavan",
+        "Dr. S. Karthikeyan",
+        "Dr. Murugan Jeyaraman",
+        "Dr. Raj Kanna",
+        "Dr. Priya Nair"
+    ]
+    for idx, p in enumerate(patients):
+        doc_assigned = doctors_list[idx % len(doctors_list)]
         result.append({
             "id": p.id,
             "Patient ID": p.patient_id or p.patient_code or f"PAT-{p.id:04d}",
             "Name": p.full_name,
+            "Doctor": doc_assigned,
             "Disease": p.disease or "General Consultation",
             "Pain Level": f"{p.pain_scale or 3}/10",
             "Phone": p.phone,
-            "Registered Date": str(p.created_at.date()) if p.created_at else "2026-08-13",
+            "Registered Date": str(p.created_at.date()) if p.created_at else "2026-08-20",
             "Status": p.status or "Active"
         })
     return result
@@ -33,6 +42,7 @@ def register_patient(payload: dict, db: Session = Depends(get_db)):
     email = payload.get("Email") or payload.get("email")
     pid = payload.get("Patient ID") or payload.get("patient_id") or payload.get("patient_code") or f"PAT-{2000 + db.query(Patient).count() + 1}"
     disease = payload.get("Disease") or payload.get("disease") or "General Consultation"
+    doctor = payload.get("Doctor") or payload.get("doctor") or "Dr. Madhavan"
     
     pain_val = payload.get("Pain Level") or payload.get("Pain Scale") or payload.get("pain_scale") or payload.get("pain")
     pain = 3
@@ -61,10 +71,32 @@ def register_patient(payload: dict, db: Session = Depends(get_db)):
     db.add(patient)
     db.commit()
     db.refresh(patient)
+
+    # Save appointment & notification in DB for selected doctor
+    from hms_backend.app.utils.generic_crud import create_generic_record
+    from datetime import datetime
+    time_str = datetime.now().strftime("%Y-%m-%d %I:%M %p")
+    
+    create_generic_record(db, "doctor_appointments", {
+        "Time": time_str,
+        "Patient Name": name,
+        "Doctor": doctor,
+        "Status": "Scheduled",
+        "Notes": f"Newly registered patient ({disease})"
+    })
+    
+    create_generic_record(db, "doctor_notifications", {
+        "Doctor": doctor,
+        "Patient": name,
+        "Message": f"🔔 New Patient Assigned: {name} registered by Receptionist and assigned to {doctor}.",
+        "Status": "Unread"
+    })
+
     return {
         "id": patient.id,
         "Patient ID": patient.patient_id,
         "Name": patient.full_name,
+        "Doctor": doctor,
         "Disease": patient.disease,
         "Pain Level": f"{patient.pain_scale}/10",
         "Phone": patient.phone,

@@ -32,11 +32,33 @@ export default function Header({ onToggleMobileMenu, user: userProp, onLogout })
 
   const currentRoleTitle = roleTitleMap[String(user?.role).toLowerCase()] || user?.role || 'Staff User';
 
-  const notifications = [
-    { id: 1, title: 'Emergency Room Alert', time: '5m ago', type: 'urgent', text: 'Bed allocation needed for Patient #402 in ICU.' },
-    { id: 2, title: 'Lab Results Ready', time: '18m ago', type: 'info', text: 'CBC Blood test report generated for Aarav Kumar.' },
-    { id: 3, title: 'Shift Schedule Update', time: '1h ago', type: 'system', text: 'Dr. Sarah Johnson added to evening Cardiology shift.' },
+  const [liveNotifs, setLiveNotifs] = useState([]);
+
+  React.useEffect(() => {
+    if (user?.role === 'doctor' && user?.name) {
+      fetch(`/api/v1/doctor/notifications?doctor_name=${encodeURIComponent(user.name)}`)
+        .then((res) => res.ok ? res.json() : [])
+        .then((data) => {
+          if (Array.isArray(data) && data.length > 0) {
+            setLiveNotifs(data.map((n, idx) => ({
+              id: n.id || idx + 1,
+              title: 'New Patient Assignment',
+              time: 'Just now',
+              type: 'urgent',
+              text: n.Message || `🔔 New Patient Assigned: ${n.Patient} registered by Receptionist.`
+            })));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [user]);
+
+  const defaultNotifications = [
+    { id: 101, title: 'Emergency Room Alert', time: '5m ago', type: 'urgent', text: 'Bed allocation needed for Patient #402 in ICU.' },
+    { id: 102, title: 'Lab Results Ready', time: '18m ago', type: 'info', text: 'CBC Blood test report generated for Aarav Kumar.' }
   ];
+
+  const notifications = liveNotifs.length > 0 ? liveNotifs : defaultNotifications;
 
   const handleConfirmLogout = () => {
     setShowLogoutModal(false);

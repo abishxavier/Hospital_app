@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Plus, Search, Filter, Trash2, Download, Printer, RefreshCw, ChevronLeft, ChevronRight, X, FileText, AlertCircle, Calendar, Clock, CheckCircle2, Eye, Minimize2, Maximize2 } from 'lucide-react';
 import jsPDF from 'jspdf';
@@ -623,10 +624,35 @@ const GenericPage = ({ title, description, cols, defaultData = [], apiEndpoint, 
   const [currentPage, setCurrentPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedViewRecord, setSelectedViewRecord] = useState(null);
-  const [isFullScreen, setIsFullScreen] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(true);
   const [selectedInvoiceModal, setSelectedInvoiceModal] = useState(null);
   const [formData, setFormData] = useState({});
   const [dateError, setDateError] = useState('');
+  const [statusUpdateRow, setStatusUpdateRow] = useState(null);
+  const [selectedNewStatus, setSelectedNewStatus] = useState('');
+
+  // Handle status update
+  const handleStatusUpdate = (rowId, newStatus) => {
+    setData((prev) =>
+      prev.map((item) => {
+        if (item.id === rowId) {
+          const updated = { ...item, Status: newStatus };
+          if (item['Payment Status']) updated['Payment Status'] = newStatus;
+          if (item.status) updated.status = newStatus;
+
+          if (apiEndpoint) {
+            fetch(`${apiEndpoint}/${rowId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(updated),
+            }).catch(() => {});
+          }
+          return updated;
+        }
+        return item;
+      })
+    );
+  };
 
   // Get doctor name filter from stored session
   const doctorNameFilter = useMemo(() => {
@@ -641,7 +667,7 @@ const GenericPage = ({ title, description, cols, defaultData = [], apiEndpoint, 
   const pageSize = 5;
 
   // Fetch from backend
-  useEffect(() => {
+  const fetchLatestData = useCallback(() => {
     if (apiEndpoint) {
       setLoading(true);
       let userObj = {};
@@ -670,9 +696,25 @@ const GenericPage = ({ title, description, cols, defaultData = [], apiEndpoint, 
     }
   }, [apiEndpoint]);
 
+  useEffect(() => {
+    fetchLatestData();
+  }, [fetchLatestData, doctorNameFilter]);
+
   // Filtered rows
   const filteredData = useMemo(() => {
     return data.filter((row) => {
+      // Doctor Isolation Guard: If logged in as Doctor, only show records matching this doctor
+      if (doctorNameFilter) {
+        const rowDoctor = String(row.Doctor || row['Doctor Name'] || row['Attending Doctor'] || '').toLowerCase();
+        const loggedDoc = doctorNameFilter.toLowerCase();
+        if (rowDoctor) {
+          const docKeys = ["madhavan", "karthik", "murugan", "raj", "priya"];
+          const matchesKey = docKeys.some(k => loggedDoc.includes(k) && rowDoctor.includes(k));
+          const matchesFull = rowDoctor.includes(loggedDoc) || loggedDoc.includes(rowDoctor);
+          if (!matchesKey && !matchesFull) return false;
+        }
+      }
+
       const matchesSearch = cols.some((col) => {
         const val = row[col] || Object.values(row).join(' ');
         return String(val).toLowerCase().includes(searchQuery.toLowerCase());
@@ -682,7 +724,7 @@ const GenericPage = ({ title, description, cols, defaultData = [], apiEndpoint, 
       const statusVal = String(row.Status || row.status || row.Availability || '').toLowerCase();
       return matchesSearch && statusVal.includes(filterStatus.toLowerCase());
     });
-  }, [data, cols, searchQuery, filterStatus]);
+  }, [data, cols, searchQuery, filterStatus, doctorNameFilter]);
 
   // Pagination
   const totalPages = Math.ceil(filteredData.length / pageSize) || 1;
@@ -772,6 +814,10 @@ const GenericPage = ({ title, description, cols, defaultData = [], apiEndpoint, 
     }
 
     const newEntry = { ...formData };
+    if (doctorNameFilter && !newEntry.Doctor && cols.some(c => c.toLowerCase().includes('doctor'))) {
+      newEntry.Doctor = doctorNameFilter;
+    }
+
     cols.forEach((col) => {
       if (!newEntry[col]) {
         const now = new Date();
@@ -796,6 +842,7 @@ const GenericPage = ({ title, description, cols, defaultData = [], apiEndpoint, 
           } else {
             setData((prev) => [{ id: Date.now(), ...newEntry }, ...prev]);
           }
+          fetchLatestData();
         })
         .catch(() => {
           setData((prev) => [{ id: Date.now(), ...newEntry }, ...prev]);
@@ -1118,106 +1165,171 @@ Confidential Medical Report. Hospital Seal Applied.
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-2 sm:p-5 md:p-8 overflow-y-auto">
-          <div className={`bg-white rounded-2xl md:rounded-3xl shadow-2xl transition-all duration-300 border border-slate-100 flex flex-col overflow-hidden ${
-            isFullScreen ? 'fixed inset-0 w-screen h-screen rounded-none max-h-screen z-[100]' : 'w-full max-w-4xl my-auto max-h-[92vh]'
-          }`}>
-            <div className="flex justify-between items-center px-6 py-4 md:px-8 md:py-5 border-b border-slate-200 bg-slate-50/90 shrink-0">
-              <div className="flex items-center space-x-3">
-                <div className="p-2.5 bg-blue-100/70 rounded-xl text-blue-700 shrink-0">
-                  <Plus className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-lg md:text-xl font-bold text-slate-900">Add New Entry</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">{title} • Fill form details below</p>
-                </div>
+      {isModalOpen && createPortal(
+        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-xl z-[99999] flex flex-col w-screen h-screen overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div className="flex justify-between items-center px-6 py-4 md:px-10 md:py-5 border-b border-slate-200 bg-white shrink-0 shadow-sm">
+            <div className="flex items-center space-x-3">
+              <div className="p-3 bg-blue-100 rounded-2xl text-blue-700">
+                <Plus className="w-6 h-6" />
               </div>
-              <div className="flex items-center space-x-2">
-                <button type="button" onClick={() => setIsFullScreen(!isFullScreen)} className="text-slate-400 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-200/70 transition-colors">
-                  {isFullScreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-                </button>
-                <button type="button" onClick={() => { setIsModalOpen(false); setIsFullScreen(false); }} className="text-slate-400 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-200/70 transition-colors">
-                  <X className="w-5 h-5" />
-                </button>
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">Add New Entry — {title}</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Fill out complete record details below</p>
               </div>
             </div>
-            
-            <form onSubmit={handleCreateNew} className="flex flex-col flex-1 overflow-hidden">
-              <div className="p-6 md:p-8 overflow-y-auto flex-1 scrollbar-thin">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {cols.map((col, idx) => {
-                    const colLower = col.toLowerCase();
-                    const isDoctor = colLower.includes('doctor');
-                    const isMedicine = colLower.includes('medicine') || colLower.includes('tablet');
-                    const isStatus = colLower.includes('status') || colLower.includes('availability');
-                    const isPain = colLower.includes('pain');
-                    const isDateTime = isDateTimeField(col);
-                    return (
-                      <div key={idx} className={isPain ? "col-span-full" : "col-span-1"}>
-                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1.5">{col}</label>
-                        {isPain ? (
-                          <WongBakerPainScaleSelector value={formData[col] || '3/10'} onChange={(val) => handleInputChange(col, val)} />
-                        ) : isDoctor ? (
-                          <select value={formData[col] || doctorNameFilter || DOCTOR_OPTIONS[0]} onChange={(e) => handleInputChange(col, e.target.value)} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm bg-white cursor-pointer font-medium text-slate-800 shadow-sm">
-                            {DOCTOR_OPTIONS.map((doc, dIdx) => <option key={dIdx} value={doc}>{doc}</option>)}
-                          </select>
-                        ) : isMedicine ? (
-                          <select value={formData[col] || MEDICINE_OPTIONS[0]} onChange={(e) => handleInputChange(col, e.target.value)} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm bg-white cursor-pointer font-medium text-slate-800 shadow-sm">
-                            {MEDICINE_OPTIONS.map((med, mIdx) => <option key={mIdx} value={med}>{med}</option>)}
-                          </select>
-                        ) : isStatus ? (
-                          <select value={formData[col] || STATUS_OPTIONS[0]} onChange={(e) => handleInputChange(col, e.target.value)} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm bg-white cursor-pointer font-medium text-slate-800 shadow-sm">
-                            {STATUS_OPTIONS.map((st, sIdx) => <option key={sIdx} value={st}>{st}</option>)}
-                          </select>
-                        ) : isDateTime ? (
-                          <DateTimePicker value={formData[col] || ''} onChange={(val) => handleInputChange(col, val)} />
-                        ) : (
-                          <input type="text" required={idx === 0} value={formData[col] || ''} onChange={(e) => handleInputChange(col, e.target.value)} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm font-medium text-slate-800 shadow-sm" />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-              <div className="px-6 py-4 md:px-8 md:py-4 border-t border-slate-200 flex items-center justify-between bg-slate-50/90 shrink-0">
-                <button type="button" onClick={() => { setIsModalOpen(false); setIsFullScreen(false); }} className="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-200/60 rounded-xl transition-colors">Cancel</button>
-                <button type="submit" className="px-7 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg transition-all">Save Record</button>
-              </div>
-            </form>
+            <div className="flex items-center space-x-3">
+              <button type="button" onClick={() => setIsModalOpen(false)} className="flex items-center space-x-2 px-4 py-2 bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-600 rounded-xl text-xs font-bold transition-all border border-slate-200">
+                <X className="w-4 h-4" />
+                <span>Close</span>
+              </button>
+            </div>
           </div>
-        </div>
-      )}
-
-      {selectedViewRecord && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-y-auto">
-          <div className={`bg-white rounded-2xl shadow-2xl transition-all duration-300 border border-slate-100 flex flex-col overflow-hidden ${isFullScreen ? 'fixed inset-0 w-screen h-screen rounded-none max-h-screen z-[100]' : 'w-full max-w-4xl max-h-[92vh] my-auto'}`}>
-            <div className="flex justify-between items-center px-6 py-4 md:px-8 md:py-5 border-b border-slate-200 bg-slate-900 text-white shrink-0">
-              <div className="flex items-center space-x-3">
-                <div className="p-2.5 bg-blue-600 rounded-xl text-white"><Eye className="w-5 h-5" /></div>
-                <h2 className="text-lg font-bold">Record View</h2>
-              </div>
-              <div className="flex items-center space-x-2">
-                <button type="button" onClick={() => setIsFullScreen(!isFullScreen)} className="text-slate-300 hover:text-white p-2">{isFullScreen ? <Minimize2 /> : <Maximize2 />}</button>
-                <button type="button" onClick={() => { setSelectedViewRecord(null); setIsFullScreen(false); }} className="text-slate-300 hover:text-white p-2"><X /></button>
-              </div>
-            </div>
-            <div className="p-6 md:p-10 overflow-y-auto flex-1 space-y-6 bg-slate-50/50">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {Object.entries(selectedViewRecord).map(([key, val], kIdx) => {
-                  if (key === 'id') return null;
-                  const isPain = key.toLowerCase().includes('pain');
+          
+          <form onSubmit={handleCreateNew} className="flex flex-col flex-1 overflow-hidden bg-slate-50">
+            <div className="p-6 md:p-12 overflow-y-auto flex-1 scrollbar-thin">
+              <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {cols.map((col, idx) => {
+                  const colLower = col.toLowerCase();
+                  const isDoctor = colLower.includes('doctor');
+                  const isMedicine = colLower.includes('medicine') || colLower.includes('tablet');
+                  const isStatus = colLower.includes('status') || colLower.includes('availability');
+                  const isPain = colLower.includes('pain');
+                  const isDateTime = isDateTimeField(col);
                   return (
-                    <div key={kIdx} className="p-5 bg-white rounded-2xl border border-slate-200 shadow-sm">
-                      <span className="block text-xs font-bold text-slate-400 uppercase mb-2">{key}</span>
-                      {isPain ? <PainScaleBadge val={val} /> : <span className="text-lg font-bold text-slate-900">{String(val)}</span>}
+                    <div key={idx} className={isPain ? "col-span-full" : "col-span-1"}>
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-2">{col}</label>
+                      {isPain ? (
+                        <WongBakerPainScaleSelector value={formData[col] || '3/10'} onChange={(val) => handleInputChange(col, val)} />
+                      ) : isDoctor ? (
+                        <select value={formData[col] || doctorNameFilter || DOCTOR_OPTIONS[0]} onChange={(e) => handleInputChange(col, e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm bg-white font-medium text-slate-800 shadow-sm">
+                          {DOCTOR_OPTIONS.map((doc, dIdx) => <option key={dIdx} value={doc}>{doc}</option>)}
+                        </select>
+                      ) : isMedicine ? (
+                        <select value={formData[col] || MEDICINE_OPTIONS[0]} onChange={(e) => handleInputChange(col, e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm bg-white font-medium text-slate-800 shadow-sm">
+                          {MEDICINE_OPTIONS.map((med, mIdx) => <option key={mIdx} value={med}>{med}</option>)}
+                        </select>
+                      ) : isStatus ? (
+                        <select value={formData[col] || STATUS_OPTIONS[0]} onChange={(e) => handleInputChange(col, e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm bg-white font-medium text-slate-800 shadow-sm">
+                          {STATUS_OPTIONS.map((st, sIdx) => <option key={sIdx} value={st}>{st}</option>)}
+                        </select>
+                      ) : isDateTime ? (
+                        <DateTimePicker value={formData[col] || ''} onChange={(val) => handleInputChange(col, val)} />
+                      ) : (
+                        <input type="text" required={idx === 0} value={formData[col] || ''} onChange={(e) => handleInputChange(col, e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm font-medium text-slate-800 shadow-sm bg-white" />
+                      )}
                     </div>
                   );
                 })}
               </div>
             </div>
+            <div className="px-6 py-4 md:px-10 md:py-5 border-t border-slate-200 flex items-center justify-between bg-white shrink-0">
+              <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">Cancel</button>
+              <button type="submit" className="px-8 py-3 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg transition-all">Save Record</button>
+            </div>
+          </form>
+        </div>,
+        document.body
+      )}
+
+      {statusUpdateRow && createPortal(
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[99999] flex items-center justify-center p-4 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-100 space-y-5">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 bg-blue-100 text-blue-700 rounded-xl">
+                  <RefreshCw className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-lg">Update Patient Status</h3>
+                  <p className="text-xs text-slate-500">{statusUpdateRow['Patient Name'] || statusUpdateRow['Patient'] || statusUpdateRow['Name'] || 'Patient Record'}</p>
+                </div>
+              </div>
+              <button onClick={() => setStatusUpdateRow(null)} className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <label className="block text-xs font-bold text-slate-600 uppercase tracking-wide">Select Current Clinical Status</label>
+              <select
+                value={selectedNewStatus}
+                onChange={(e) => setSelectedNewStatus(e.target.value)}
+                className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 font-bold text-slate-800 bg-white cursor-pointer shadow-sm text-sm"
+              >
+                <option value="Scheduled">Scheduled (Waiting for Consultation)</option>
+                <option value="In Consultation">In Consultation (Doctor Examining)</option>
+                <option value="Seen / Completed">Seen / Completed (Consultation Finished)</option>
+                <option value="Checked In">Checked In (Arrived at Hospital)</option>
+                <option value="Follow-up Scheduled">Follow-up Scheduled (Review Needed)</option>
+                <option value="Discharged">Discharged (Cleared)</option>
+              </select>
+            </div>
+
+            <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100">
+              <button onClick={() => setStatusUpdateRow(null)} className="px-5 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl">Cancel</button>
+              <button
+                onClick={() => {
+                  handleStatusUpdate(statusUpdateRow.id, selectedNewStatus);
+                  setStatusUpdateRow(null);
+                }}
+                className="px-6 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-200 transition-all"
+              >
+                Save & Update Status
+              </button>
+            </div>
           </div>
-        </div>
+        </div>,
+        document.body
+      )}
+
+      {selectedViewRecord && createPortal(
+        <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-xl z-[99999] flex flex-col w-screen h-screen overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div className="flex justify-between items-center px-6 py-4 md:px-10 md:py-5 border-b border-slate-800 bg-slate-900 text-white shrink-0 shadow-md">
+            <div className="flex items-center space-x-3">
+              <div className="p-3 bg-blue-600 rounded-2xl text-white shadow-md shadow-blue-600/30">
+                <Eye className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold tracking-tight text-white">{title} — Full Screen Record Detail</h2>
+                <p className="text-xs text-slate-400">Complete clinical data record snapshot</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <button 
+                type="button" 
+                onClick={() => setSelectedViewRecord(null)} 
+                className="flex items-center space-x-2 px-5 py-2.5 bg-slate-800 hover:bg-rose-600 text-slate-200 hover:text-white rounded-xl text-xs font-bold transition-all border border-slate-700 shadow-sm"
+              >
+                <X className="w-4 h-4" />
+                <span>Close Full Screen</span>
+              </button>
+            </div>
+          </div>
+          <div className="p-6 md:p-12 overflow-y-auto flex-1 space-y-8 bg-slate-950/95 scrollbar-thin">
+            <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Object.entries(selectedViewRecord).map(([key, val], kIdx) => {
+                if (key === 'id') return null;
+                const isPain = key.toLowerCase().includes('pain');
+                const isStatus = key.toLowerCase().includes('status') || key.toLowerCase().includes('availability');
+                return (
+                  <div key={kIdx} className="p-6 bg-slate-900 border border-slate-800 rounded-2xl shadow-xl hover:border-slate-700 transition-all flex flex-col justify-between">
+                    <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">{key}</span>
+                    <div>
+                      {isPain ? (
+                        <PainScaleBadge val={val} />
+                      ) : isStatus ? (
+                        <StatusBadge status={val} />
+                      ) : (
+                        <span className="text-xl font-black text-white leading-relaxed break-words">{String(val || 'N/A')}</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -1258,7 +1370,11 @@ Confidential Medical Report. Hospital Seal Applied.
                 paginatedData.map((row, rowIdx) => (
                   <tr key={row.id || rowIdx} className="hover:bg-slate-50/70 transition-colors group">
                     {cols.map((col, colIdx) => {
-                      const rawVal = row[col] !== undefined && row[col] !== null ? row[col] : Object.values(row)[colIdx + 1];
+                      const rawVal = row[col] !== undefined && row[col] !== null
+                        ? row[col]
+                        : (col.toLowerCase().includes('doctor')
+                            ? (row.Doctor || row['Doctor Name'] || row['Attending Doctor'] || row.doctor || 'Dr. Madhavan')
+                            : (row[col.toLowerCase()] !== undefined ? row[col.toLowerCase()] : 'N/A'));
                       const val = typeof rawVal === 'object' && rawVal !== null ? JSON.stringify(rawVal) : (rawVal !== undefined && rawVal !== null ? String(rawVal) : 'N/A');
                       const isStatusCol = col.toLowerCase().includes('status') || col.toLowerCase().includes('availability');
                       const isPainCol = col.toLowerCase().includes('pain');
@@ -1277,7 +1393,18 @@ Confidential Medical Report. Hospital Seal Applied.
                         </td>
                       );
                     })}
-                    <td className="px-6 py-4 text-right relative space-x-2">
+                    <td className="px-6 py-4 text-right relative space-x-2 flex items-center justify-end">
+                      <button
+                        onClick={() => {
+                          setStatusUpdateRow(row);
+                          setSelectedNewStatus(row.Status || row.status || 'In Consultation');
+                        }}
+                        title="Update Patient Current Status"
+                        className="inline-flex items-center px-2.5 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors border border-emerald-200 shadow-sm mr-1"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5 mr-1" />
+                        Update Status
+                      </button>
                       <button
                         onClick={() => { setSelectedViewRecord(row); setIsFullScreen(false); }}
                         title="View Details in Full Screen"
@@ -1459,18 +1586,58 @@ const SystemSettings = () => <GenericPage title="System Settings" description="G
 const DeletedRecordsLog = () => <GenericPage title="Deleted Records Audit Log" description="All records marked as deleted in database and archived in deleted_records audit table." cols={['Category', 'Record ID', 'Deleted Data Snapshot', 'Deleted Timestamp', 'Status']} apiEndpoint="/api/v1/admin/deleted-records" defaultData={[]} />;
 
 // 2. Reception
-const PatientRegistration = () => <GenericPage title="Patient Registration" description="Register new outpatient and inpatient records with disease and pain scale tracking." cols={['Patient ID', 'Name', 'Disease', 'Pain Level', 'Phone', 'Registered Date', 'Status']} apiEndpoint="/api/v1/patients" defaultData={[{ id: 1, 'Patient ID': 'PAT-2001', Name: 'Aarav Kumar', Disease: 'Diabetes', 'Pain Level': '3/10', Phone: '+91 98765 43210', 'Registered Date': '2026-08-13 09:15 AM', Status: 'Active' }]} />;
-const AppointmentBooking = () => <GenericPage title="Appointment Booking" description="Schedule consultations with specialized doctors." cols={['Appointment ID', 'Patient', 'Doctor', 'Date & Time', 'Status']} apiEndpoint="/api/v1/appointments" defaultData={[{ id: 1, 'Appointment ID': 'APT-801', Patient: 'Aarav Kumar', Doctor: 'Dr. Priya Nair', 'Date & Time': '2026-08-13 10:30 AM', Status: 'Confirmed' }]} />;
-const QueueManagement = () => <GenericPage title="Queue Management" description="Real-time outpatient token tracking." cols={['Token No', 'Patient', 'Doctor', 'Est. Time', 'Status']} apiEndpoint="/api/v1/reception/queue" defaultData={[{ id: 1, 'Token No': 'TK-01', Patient: 'Aarav Kumar', Doctor: 'Dr. Priya Nair', 'Est. Time': '10:30 AM', Status: 'In Consultation' }]} />;
+const PatientRegistration = () => <GenericPage title="Patient Registration" description="Register new outpatient and inpatient records with assigned doctor, disease, and pain scale tracking." cols={['Patient ID', 'Name', 'Doctor', 'Disease', 'Pain Level', 'Phone', 'Registered Date', 'Status']} apiEndpoint="/api/v1/patients" defaultData={[
+  { id: 1, 'Patient ID': 'PAT-2001', Name: 'Aarav Kumar', Doctor: 'Dr. Madhavan', Disease: 'Diabetes & Hypertension', 'Pain Level': '3/10', Phone: '+91 98765 43210', 'Registered Date': '2026-08-13 09:15 AM', Status: 'Active' },
+  { id: 2, 'Patient ID': 'PAT-2002', Name: 'Ananya Sharma', Doctor: 'Dr. Madhavan', Disease: 'Angina Pectoris', 'Pain Level': '4/10', Phone: '+91 98765 43211', 'Registered Date': '2026-08-14 10:00 AM', Status: 'Active' },
+  { id: 3, 'Patient ID': 'PAT-2003', Name: 'Kavya Ramesh', Doctor: 'Dr. Madhavan', Disease: 'Hyperlipidemia', 'Pain Level': '2/10', Phone: '+91 98765 43212', 'Registered Date': '2026-08-15 11:30 AM', Status: 'Active' }
+]} />;
+const AppointmentBooking = () => <GenericPage title="Appointment Booking" description="Schedule consultations with specialized doctors." cols={['Appointment ID', 'Patient', 'Doctor', 'Date & Time', 'Status']} apiEndpoint="/api/v1/appointments" defaultData={[{ id: 1, 'Appointment ID': 'APT-801', Patient: 'Aarav Kumar', Doctor: 'Dr. Madhavan', 'Date & Time': '2026-08-20 09:30 AM', Status: 'Confirmed' }]} />;
+const QueueManagement = () => <GenericPage title="Queue Management" description="Real-time outpatient token tracking." cols={['Token No', 'Patient', 'Doctor', 'Est. Time', 'Status']} apiEndpoint="/api/v1/reception/queue" defaultData={[{ id: 1, 'Token No': 'TK-01', Patient: 'Aarav Kumar', Doctor: 'Dr. Madhavan', 'Est. Time': '09:30 AM', Status: 'In Consultation' }]} />;
 const OPIPRegistration = () => <GenericPage title="OP/IP Registration" description="Manage status between Outpatient and Inpatient wings." cols={['Patient Name', 'Type', 'Department', 'Status']} apiEndpoint="/api/v1/reception/op-ip" defaultData={[{ id: 1, 'Patient Name': 'Aarav Kumar', Type: 'Outpatient (OP)', Department: 'Cardiology', Status: 'Checked In' }]} />;
 
 // 3. Doctor
-const ViewAppointments = () => <GenericPage title="View Appointments" description="Today's clinical consultation list." cols={['Time', 'Patient Name', 'Doctor', 'Status']} apiEndpoint="/api/v1/doctor/appointments" defaultData={[{ id: 1, Time: '2026-08-13 10:30 AM', 'Patient Name': 'Aarav Kumar', Doctor: 'Dr. Priya Nair', Status: 'In Consultation' }]} />;
-const PatientHistory = () => <GenericPage title="Patient History" description="EMR history and past diagnoses." cols={['Date', 'Patient Name', 'Diagnosis', 'Notes']} apiEndpoint="/api/v1/doctor/patient-history" defaultData={[{ id: 1, Date: '2026-08-13 09:30 AM', 'Patient Name': 'Aarav Kumar', Diagnosis: 'Hypertension Stage 1', Notes: 'Prescribed Telmisartan 40mg once daily.' }]} />;
-const Diagnosis = () => <GenericPage title="Diagnosis" description="Record clinical findings and ICD codes." cols={['Patient', 'ICD Code', 'Description', 'Severity']} apiEndpoint="/api/v1/doctor/diagnosis" defaultData={[{ id: 1, Patient: 'Aarav Kumar', 'ICD Code': 'I10', Description: 'Essential hypertension', Severity: 'Moderate' }]} />;
-const Prescription = () => <GenericPage title="Prescription" description="Write and manage patient prescriptions with tablet selection." cols={['Patient', 'Doctor', 'Medicines', 'Duration', 'Date']} apiEndpoint="/api/v1/doctor/prescriptions" defaultData={[{ id: 1, Patient: 'Aarav Kumar', Doctor: 'Dr. Priya Nair', Medicines: 'Paracetamol 650mg, Amoxicillin 500mg', Duration: '5 Days', Date: '2026-08-13 10:45 AM' }]} />;
-const LabTestRequest = () => <GenericPage title="Lab Test Request" description="Request diagnostic blood tests and imaging." cols={['Patient', 'Test Name', 'Priority', 'Status']} apiEndpoint="/api/v1/doctor/lab-test-request" defaultData={[{ id: 1, Patient: 'Aarav Kumar', 'Test Name': 'CBC Blood Profile', Priority: 'Normal', Status: 'Requested' }]} />;
-const FollowupSchedule = () => <GenericPage title="Follow-up Schedule" description="Schedule chronic care review dates." cols={['Patient', 'Doctor', 'Next Visit Date', 'Reason', 'Status']} apiEndpoint="/api/v1/doctor/follow-up" defaultData={[{ id: 1, Patient: 'Aarav Kumar', Doctor: 'Dr. Priya Nair', 'Next Visit Date': '2026-08-27 11:00 AM', Reason: 'BP Re-assessment', Status: 'Scheduled' }]} />;
+const ViewAppointments = () => <GenericPage title="View Appointments" description="Today's clinical consultation list divided equally across doctors (3 patients per doctor)." cols={['Time', 'Patient Name', 'Doctor', 'Status']} apiEndpoint="/api/v1/doctor/appointments" defaultData={[
+  // Dr. Madhavan (Cardiology)
+  { id: 1, Time: '2026-08-20 09:30 AM', 'Patient Name': 'Aarav Kumar', Doctor: 'Dr. Madhavan', Status: 'In Consultation' },
+  { id: 2, Time: '2026-08-20 10:15 AM', 'Patient Name': 'Ananya Sharma', Doctor: 'Dr. Madhavan', Status: 'Scheduled' },
+  { id: 3, Time: '2026-08-20 11:00 AM', 'Patient Name': 'Kavya Ramesh', Doctor: 'Dr. Madhavan', Status: 'Scheduled' },
+  // Dr. S. Karthikeyan (Neurology)
+  { id: 4, Time: '2026-08-20 11:45 AM', 'Patient Name': 'Rajesh Patel', Doctor: 'Dr. S. Karthikeyan', Status: 'In Consultation' },
+  { id: 5, Time: '2026-08-20 12:30 PM', 'Patient Name': 'Meera Iyer', Doctor: 'Dr. S. Karthikeyan', Status: 'Scheduled' },
+  { id: 6, Time: '2026-08-20 01:15 PM', 'Patient Name': 'Arjun Swaminathan', Doctor: 'Dr. S. Karthikeyan', Status: 'Scheduled' },
+  // Dr. Murugan Jeyaraman (Pediatrics)
+  { id: 7, Time: '2026-08-20 02:00 PM', 'Patient Name': 'Master Vihaan Singh', Doctor: 'Dr. Murugan Jeyaraman', Status: 'In Consultation' },
+  { id: 8, Time: '2026-08-20 02:45 PM', 'Patient Name': 'Baby Diya Verma', Doctor: 'Dr. Murugan Jeyaraman', Status: 'Scheduled' },
+  { id: 9, Time: '2026-08-20 03:30 PM', 'Patient Name': 'Master Kian Nair', Doctor: 'Dr. Murugan Jeyaraman', Status: 'Scheduled' },
+  // Dr. Raj Kanna (Orthopedics)
+  { id: 10, Time: '2026-08-20 04:15 PM', 'Patient Name': 'Vikramaditya Rao', Doctor: 'Dr. Raj Kanna', Status: 'In Consultation' },
+  { id: 11, Time: '2026-08-20 05:00 PM', 'Patient Name': 'Ramesh Gupta', Doctor: 'Dr. Raj Kanna', Status: 'Scheduled' },
+  { id: 12, Time: '2026-08-20 05:45 PM', 'Patient Name': 'Divya Krishnan', Doctor: 'Dr. Raj Kanna', Status: 'Scheduled' },
+  // Dr. Priya Nair (General Medicine)
+  { id: 13, Time: '2026-08-20 06:30 PM', 'Patient Name': 'Sunita Sundaram', Doctor: 'Dr. Priya Nair', Status: 'In Consultation' },
+  { id: 14, Time: '2026-08-20 07:15 PM', 'Patient Name': 'Suresh Reddy', Doctor: 'Dr. Priya Nair', Status: 'Scheduled' },
+  { id: 15, Time: '2026-08-20 08:00 PM', 'Patient Name': 'Pooja Deshmukh', Doctor: 'Dr. Priya Nair', Status: 'Scheduled' }
+]} />;
+const PatientHistory = () => <GenericPage title="Patient History" description="EMR history and past diagnoses." cols={['Date', 'Patient Name', 'Doctor', 'Diagnosis', 'Notes']} apiEndpoint="/api/v1/doctor/patient-history" defaultData={[
+  { id: 1, Date: '2026-08-13 09:30 AM', 'Patient Name': 'Aarav Kumar', Doctor: 'Dr. Madhavan', Diagnosis: 'Hypertension Stage 1', Notes: 'Prescribed Telmisartan 40mg once daily.' },
+  { id: 2, Date: '2026-08-14 10:00 AM', 'Patient Name': 'Rajesh Patel', Doctor: 'Dr. S. Karthikeyan', Diagnosis: 'Chronic Migraine', Notes: 'MRI Brain clear.' }
+]} />;
+const Diagnosis = () => <GenericPage title="Diagnosis" description="Record clinical findings and ICD codes." cols={['Patient', 'Doctor', 'ICD Code', 'Description', 'Severity', 'Status']} apiEndpoint="/api/v1/doctor/diagnosis" defaultData={[
+  { id: 1, Patient: 'Aarav Kumar', Doctor: 'Dr. Madhavan', 'ICD Code': 'I10', Description: 'Essential hypertension', Severity: 'Moderate', Status: 'In Consultation' },
+  { id: 2, Patient: 'Rajesh Patel', Doctor: 'Dr. S. Karthikeyan', 'ICD Code': 'G43.9', Description: 'Migraine, unspecified', Severity: 'Moderate', Status: 'In Consultation' }
+]} />;
+const Prescription = () => <GenericPage title="Prescription" description="Write and manage patient prescriptions with tablet selection." cols={['Patient', 'Doctor', 'Medicines', 'Duration', 'Date']} apiEndpoint="/api/v1/doctor/prescriptions" defaultData={[
+  { id: 1, Patient: 'Aarav Kumar', Doctor: 'Dr. Madhavan', Medicines: 'Telmisartan 40mg, Paracetamol 650mg', Duration: '5 Days', Date: '2026-08-13 10:45 AM' },
+  { id: 2, Patient: 'Rajesh Patel', Doctor: 'Dr. S. Karthikeyan', Medicines: 'Naproxen 250mg, Omeprazole 20mg', Duration: '7 Days', Date: '2026-08-14 11:30 AM' }
+]} />;
+const LabTestRequest = () => <GenericPage title="Lab Test Request" description="Request diagnostic blood tests and imaging." cols={['Patient', 'Doctor', 'Test Name', 'Priority', 'Status']} apiEndpoint="/api/v1/doctor/lab-test-request" defaultData={[
+  { id: 1, Patient: 'Aarav Kumar', Doctor: 'Dr. Madhavan', 'Test Name': 'CBC Blood Profile & Lipid', Priority: 'Normal', Status: 'Requested' },
+  { id: 2, Patient: 'Rajesh Patel', Doctor: 'Dr. S. Karthikeyan', 'Test Name': 'EEG & Brain MRI Scan', Priority: 'High', Status: 'Requested' }
+]} />;
+const FollowupSchedule = () => <GenericPage title="Follow-up Schedule" description="Schedule chronic care review dates." cols={['Patient', 'Doctor', 'Next Visit Date', 'Reason', 'Status']} apiEndpoint="/api/v1/doctor/follow-up" defaultData={[
+  { id: 1, Patient: 'Aarav Kumar', Doctor: 'Dr. Madhavan', 'Next Visit Date': '2026-08-27 11:00 AM', Reason: 'BP Re-assessment', Status: 'Scheduled' },
+  { id: 2, Patient: 'Rajesh Patel', Doctor: 'Dr. S. Karthikeyan', 'Next Visit Date': '2026-08-28 02:00 PM', Reason: 'Migraine Review', Status: 'Scheduled' }
+]} />;
 
 // 4. Nurse
 const PatientVitals = () => <GenericPage title="Patient Vitals" description="Record BP, Heart Rate, Temperature, Pain Scale (0-10), RBS, and SpO2." cols={['Patient', 'BP', 'Heart Rate', 'Temp', 'Pain Scale', 'RBS', 'SpO2', 'Recorded At']} apiEndpoint="/api/v1/nurse/patient-vitals" defaultData={[{ id: 1, Patient: 'Aarav Kumar', BP: '120/80 mmHg', 'Heart Rate': '72 bpm', Temp: '98.6 °F', 'Pain Scale': '2/10 (Mild)', RBS: '110 mg/dL', SpO2: '98%', 'Recorded At': '2026-08-13 09:00 AM' }]} />;
