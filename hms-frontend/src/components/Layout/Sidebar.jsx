@@ -140,8 +140,18 @@ const MODULES = [
 
 export default function Sidebar({ isOpenMobile, onCloseMobile, userRole: userRoleProp }) {
   const location = useLocation();
-  const savedUserStr = localStorage.getItem('hms_user');
-  const activeRole = userRoleProp || (savedUserStr ? JSON.parse(savedUserStr).role : 'admin');
+  const activeRole = useMemo(() => {
+    if (userRoleProp) return userRoleProp;
+    try {
+      const savedUserStr = localStorage.getItem('hms_user');
+      if (!savedUserStr) return 'admin';
+      const parsed = JSON.parse(savedUserStr);
+      return parsed?.role || 'admin';
+    } catch (e) {
+      localStorage.removeItem('hms_user');
+      return 'admin';
+    }
+  }, [userRoleProp]);
 
   const visibleModules = React.useMemo(() => {
     const r = String(activeRole || '').toLowerCase();

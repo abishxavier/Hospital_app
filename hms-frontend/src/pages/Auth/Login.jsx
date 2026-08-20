@@ -102,7 +102,7 @@ export default function Login({ onLoginSuccess }) {
     else if (r.includes('portal')) target = '/portal/login';
     else target = '/admin/dashboard';
 
-    navigate(target, { replace: true });
+    window.location.replace(target);
   };
 
   const handleSubmit = async (e) => {
