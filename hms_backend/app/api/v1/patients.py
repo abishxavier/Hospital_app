@@ -32,8 +32,17 @@ def register_patient(payload: dict, db: Session = Depends(get_db)):
     phone = payload.get("Phone") or payload.get("phone") or "+91 99999 00000"
     email = payload.get("Email") or payload.get("email")
     pid = payload.get("Patient ID") or payload.get("patient_id") or payload.get("patient_code") or f"PAT-{2000 + db.query(Patient).count() + 1}"
-    disease = payload.get("Disease") or payload.get("disease") or "Diabetes"
-    pain = int(payload.get("Pain Level", "3").split("/")[0]) if payload.get("Pain Level") else 3
+    disease = payload.get("Disease") or payload.get("disease") or "General Consultation"
+    
+    pain_val = payload.get("Pain Level") or payload.get("Pain Scale") or payload.get("pain_scale") or payload.get("pain")
+    pain = 3
+    if pain_val is not None:
+        import re
+        m = re.search(r'\d+', str(pain_val))
+        if m:
+            pain = int(m.group(0))
+            if pain > 10: pain = 10
+            if pain < 0: pain = 0
 
     existing = db.query(Patient).filter((Patient.patient_id == pid) | (Patient.patient_code == pid)).first()
     if existing:

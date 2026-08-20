@@ -10,11 +10,18 @@ router = APIRouter(prefix="/doctor", tags=["doctor"])
 
 # 1. View Appointments
 @router.get("/appointments")
-def get_appointments(db: Session = Depends(get_db)):
+def get_appointments(doctor_name: str = None, db: Session = Depends(get_db)):
     defaults = [
-        {"id": 1, "Time": "10:30 AM", "Patient Name": "Aarav Kumar", "Doctor": "Dr. Priya Nair", "Status": "In Consultation"}
+        {"id": 1, "Time": "10:30 AM", "Patient Name": "Aarav", "Doctor": "Dr. Madhavan", "Status": "In Consultation"},
+        {"id": 2, "Time": "11:15 AM", "Patient Name": "Ishaan", "Doctor": "Dr. S. Karthikeyan", "Status": "Scheduled"},
+        {"id": 3, "Time": "02:00 PM", "Patient Name": "Rahul", "Doctor": "Dr. Murugan Jeyaraman", "Status": "Scheduled"},
+        {"id": 4, "Time": "03:30 PM", "Patient Name": "Tanvi", "Doctor": "Dr. Raj Kanna", "Status": "Scheduled"}
     ]
-    return get_generic_records(db, "doctor_appointments", defaults)
+    records = get_generic_records(db, "doctor_appointments", defaults)
+    if doctor_name:
+        doc_lower = doctor_name.strip().lower()
+        records = [r for r in records if doc_lower in (r.get("Doctor") or r.get("Doctor Name") or "").lower()]
+    return records
 
 @router.post("/appointments")
 def create_appointment(payload: dict, db: Session = Depends(get_db)):

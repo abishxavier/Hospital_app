@@ -8,20 +8,23 @@ router = APIRouter(prefix="/appointments", tags=["appointments"])
 
 
 @router.get("")
-def list_appointments(db: Session = Depends(get_db)):
+def list_appointments(doctor_name: str = None, db: Session = Depends(get_db)):
     appts = db.query(Appointment).filter(Appointment.status != "Deleted").all()
     result = []
     for a in appts:
         patient_name = a.patient.full_name if a.patient else f"Patient #{a.patient_id}"
-        doctor_name = a.doctor.full_name if a.doctor else f"Doctor #{a.doctor_id}"
+        doctor_name_val = a.doctor.full_name if a.doctor else f"Doctor #{a.doctor_id}"
         result.append({
             "id": a.id,
             "Appointment ID": a.appointment_code or f"APT-{a.id:03d}",
             "Patient": patient_name,
-            "Doctor": doctor_name,
+            "Doctor": doctor_name_val,
             "Date & Time": str(a.appointment_date.strftime("%Y-%m-%d %H:%M")) if a.appointment_date else "2026-08-13 10:00",
             "Status": a.status or "Scheduled"
         })
+    if doctor_name:
+        doc_lower = doctor_name.strip().lower()
+        result = [r for r in result if doc_lower in (r.get("Doctor") or "").lower()]
     return result
 
 

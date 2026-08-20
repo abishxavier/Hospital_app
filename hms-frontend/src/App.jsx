@@ -1086,28 +1086,21 @@ Confidential Medical Report. Hospital Seal Applied.
           <div class="footer-note">
             <span>Issued by Finance Dept | City Care General Hospital</span>
             <span>Valid without signature • Hospital Seal Applied</span>
-          </div>
-
-          <script>
-            window.onload = function() {
-              window.print();
-              window.onafterprint = function() { window.close(); };
-            };
-          </script>
+        <body onload="window.print(); window.close();">
+          ${element.innerHTML}
         </body>
       </html>
     `);
     printWin.document.close();
   };
 
-
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
-      {/* Modal Overlay */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-5 md:p-8 overflow-y-auto">
-          <div className="bg-white rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-4xl my-auto animate-in zoom-in-95 duration-200 border border-slate-100 flex flex-col max-h-[92vh] overflow-hidden">
-            {/* Modal Header */}
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-2 sm:p-5 md:p-8 overflow-y-auto">
+          <div className={`bg-white rounded-2xl md:rounded-3xl shadow-2xl transition-all duration-300 border border-slate-100 flex flex-col overflow-hidden ${
+            isFullScreen ? 'fixed inset-0 w-screen h-screen rounded-none max-h-screen z-[100]' : 'w-full max-w-4xl my-auto max-h-[92vh]'
+          }`}>
             <div className="flex justify-between items-center px-6 py-4 md:px-8 md:py-5 border-b border-slate-200 bg-slate-50/90 shrink-0">
               <div className="flex items-center space-x-3">
                 <div className="p-2.5 bg-blue-100/70 rounded-xl text-blue-700 shrink-0">
@@ -1118,26 +1111,18 @@ Confidential Medical Report. Hospital Seal Applied.
                   <p className="text-xs text-slate-500 mt-0.5">{title} • Fill form details below</p>
                 </div>
               </div>
-              <button 
-                type="button"
-                onClick={() => setIsModalOpen(false)} 
-                className="text-slate-400 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-200/70 transition-colors"
-                title="Close Modal"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center space-x-2">
+                <button type="button" onClick={() => setIsFullScreen(!isFullScreen)} className="text-slate-400 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-200/70 transition-colors">
+                  {isFullScreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                </button>
+                <button type="button" onClick={() => { setIsModalOpen(false); setIsFullScreen(false); }} className="text-slate-400 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-200/70 transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
             
-            {/* Modal Body & Form */}
             <form onSubmit={handleCreateNew} className="flex flex-col flex-1 overflow-hidden">
-              {dateError && (
-                <div className="mx-6 mt-4 md:mx-8 p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-semibold flex items-center animate-in fade-in shrink-0">
-                  <AlertCircle className="w-4 h-4 mr-2 text-rose-600 shrink-0" />
-                  {dateError}
-                </div>
-              )}
-
-              <div className="p-6 md:p-8 overflow-y-auto flex-1 max-h-[calc(92vh-150px)] scrollbar-thin">
+              <div className="p-6 md:p-8 overflow-y-auto flex-1 scrollbar-thin">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                   {cols.map((col, idx) => {
                     const colLower = col.toLowerCase();
@@ -1146,155 +1131,104 @@ Confidential Medical Report. Hospital Seal Applied.
                     const isStatus = colLower.includes('status') || colLower.includes('availability');
                     const isPain = colLower.includes('pain');
                     const isDateTime = isDateTimeField(col);
-
                     return (
                       <div key={idx} className={isPain ? "col-span-full" : "col-span-1"}>
                         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1.5">{col}</label>
                         {isPain ? (
-                          <WongBakerPainScaleSelector
-                            value={formData[col] || '3/10'}
-                            onChange={(val) => handleInputChange(col, val)}
-                          />
+                          <WongBakerPainScaleSelector value={formData[col] || '3/10'} onChange={(val) => handleInputChange(col, val)} />
                         ) : isDoctor ? (
-                          <select
-                            value={formData[col] || DOCTOR_OPTIONS[0]}
-                            onChange={(e) => handleInputChange(col, e.target.value)}
-                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm bg-white cursor-pointer font-medium text-slate-800 shadow-sm"
-                          >
-                            {DOCTOR_OPTIONS.map((doc, dIdx) => (
-                              <option key={dIdx} value={doc}>{doc}</option>
-                            ))}
+                          <select value={formData[col] || doctorNameFilter || DOCTOR_OPTIONS[0]} onChange={(e) => handleInputChange(col, e.target.value)} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm bg-white cursor-pointer font-medium text-slate-800 shadow-sm">
+                            {DOCTOR_OPTIONS.map((doc, dIdx) => <option key={dIdx} value={doc}>{doc}</option>)}
                           </select>
                         ) : isMedicine ? (
-                          <select
-                            value={formData[col] || MEDICINE_OPTIONS[0]}
-                            onChange={(e) => handleInputChange(col, e.target.value)}
-                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm bg-white cursor-pointer font-medium text-slate-800 shadow-sm"
-                          >
-                            {MEDICINE_OPTIONS.map((med, mIdx) => (
-                              <option key={mIdx} value={med}>{med}</option>
-                            ))}
+                          <select value={formData[col] || MEDICINE_OPTIONS[0]} onChange={(e) => handleInputChange(col, e.target.value)} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm bg-white cursor-pointer font-medium text-slate-800 shadow-sm">
+                            {MEDICINE_OPTIONS.map((med, mIdx) => <option key={mIdx} value={med}>{med}</option>)}
                           </select>
                         ) : isStatus ? (
-                          <select
-                            value={formData[col] || STATUS_OPTIONS[0]}
-                            onChange={(e) => handleInputChange(col, e.target.value)}
-                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm bg-white cursor-pointer font-medium text-slate-800 shadow-sm"
-                          >
-                            {STATUS_OPTIONS.map((st, sIdx) => (
-                              <option key={sIdx} value={st}>{st}</option>
-                            ))}
+                          <select value={formData[col] || STATUS_OPTIONS[0]} onChange={(e) => handleInputChange(col, e.target.value)} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm bg-white cursor-pointer font-medium text-slate-800 shadow-sm">
+                            {STATUS_OPTIONS.map((st, sIdx) => <option key={sIdx} value={st}>{st}</option>)}
                           </select>
                         ) : isDateTime ? (
-                          <DateTimePicker
-                            value={formData[col] || ''}
-                            onChange={(val) => handleInputChange(col, val)}
-                            placeholder={`Select ${col}`}
-                          />
+                          <DateTimePicker value={formData[col] || ''} onChange={(val) => handleInputChange(col, val)} />
                         ) : (
-                          <input
-                            type="text"
-                            required={idx === 0}
-                            value={formData[col] || ''}
-                            onChange={(e) => handleInputChange(col, e.target.value)}
-                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm font-medium text-slate-800 shadow-sm"
-                            placeholder={`Enter ${col.toLowerCase()}`}
-                          />
+                          <input type="text" required={idx === 0} value={formData[col] || ''} onChange={(e) => handleInputChange(col, e.target.value)} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm font-medium text-slate-800 shadow-sm" />
                         )}
                       </div>
                     );
                   })}
                 </div>
               </div>
-
-              {/* Modal Footer */}
               <div className="px-6 py-4 md:px-8 md:py-4 border-t border-slate-200 flex items-center justify-between bg-slate-50/90 shrink-0">
-                <span className="text-xs text-slate-400 font-medium hidden sm:inline">Press Esc or click Cancel to close modal</span>
-                <div className="flex items-center space-x-3 ml-auto">
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(false)}
-                    className="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-200/60 rounded-xl transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-7 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-200 transition-all hover:scale-[1.02]"
-                  >
-                    Save Record
-                  </button>
-                </div>
+                <button type="button" onClick={() => { setIsModalOpen(false); setIsFullScreen(false); }} className="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-200/60 rounded-xl transition-colors">Cancel</button>
+                <button type="submit" className="px-7 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg transition-all">Save Record</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
+      {selectedViewRecord && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-y-auto">
+          <div className={`bg-white rounded-2xl shadow-2xl transition-all duration-300 border border-slate-100 flex flex-col overflow-hidden ${isFullScreen ? 'fixed inset-0 w-screen h-screen rounded-none max-h-screen z-[100]' : 'w-full max-w-4xl max-h-[92vh] my-auto'}`}>
+            <div className="flex justify-between items-center px-6 py-4 md:px-8 md:py-5 border-b border-slate-200 bg-slate-900 text-white shrink-0">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 bg-blue-600 rounded-xl text-white"><Eye className="w-5 h-5" /></div>
+                <h2 className="text-lg font-bold">Record View</h2>
+              </div>
+              <div className="flex items-center space-x-2">
+                <button type="button" onClick={() => setIsFullScreen(!isFullScreen)} className="text-slate-300 hover:text-white p-2">{isFullScreen ? <Minimize2 /> : <Maximize2 />}</button>
+                <button type="button" onClick={() => { setSelectedViewRecord(null); setIsFullScreen(false); }} className="text-slate-300 hover:text-white p-2"><X /></button>
+              </div>
+            </div>
+            <div className="p-6 md:p-10 overflow-y-auto flex-1 space-y-6 bg-slate-50/50">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Object.entries(selectedViewRecord).map(([key, val], kIdx) => {
+                  if (key === 'id') return null;
+                  const isPain = key.toLowerCase().includes('pain');
+                  return (
+                    <div key={kIdx} className="p-5 bg-white rounded-2xl border border-slate-200 shadow-sm">
+                      <span className="block text-xs font-bold text-slate-400 uppercase mb-2">{key}</span>
+                      {isPain ? <PainScaleBadge val={val} /> : <span className="text-lg font-bold text-slate-900">{String(val)}</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">{title}</h1>
           <p className="text-sm text-slate-500 mt-1">{description}</p>
         </div>
         <div className="flex items-center space-x-3">
-          <button 
-            onClick={() => { setData([...data].reverse()); }}
-            className="flex items-center px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 shadow-sm transition-colors"
-          >
-            <RefreshCw className="w-4 h-4 mr-2 text-slate-500" />
-            Refresh
-          </button>
-          <button
-            onClick={handleOpenModal}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 shadow-sm shadow-blue-200 transition-colors"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Create New
-          </button>
+          <button onClick={() => setData([...data].reverse())} className="flex items-center px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 shadow-sm">Refresh</button>
+          <button onClick={handleOpenModal} className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-md shadow-blue-200">Add New Entry</button>
         </div>
       </div>
 
-      {/* Table Container */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        {/* Search & Filter Bar */}
-        <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 bg-slate-50/50">
-          <div className="relative flex-1 max-w-md">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 transform -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-              placeholder={`Search ${title.toLowerCase()}...`}
-              className="pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full bg-white"
-            />
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row gap-4 justify-between bg-slate-50/50">
+          <div className="relative w-full sm:w-80">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input type="text" placeholder="Search..." value={searchQuery} onChange={(e) => {setSearchQuery(e.target.value); setCurrentPage(1);}} className="w-full pl-10 pr-4 py-2 border rounded-xl text-sm" />
           </div>
-          
-          <div className="flex items-center space-x-2">
-            <Filter className="w-4 h-4 text-slate-400 ml-1" />
-            <select
-              value={filterStatus}
-              onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
-              className="px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl text-slate-600 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-            >
-              <option value="All">All Statuses</option>
-              <option value="Active">Active / Completed</option>
-              <option value="Scheduled">Scheduled / Pending</option>
-              <option value="Confirmed">Confirmed</option>
-            </select>
-          </div>
+          <select value={filterStatus} onChange={(e) => {setFilterStatus(e.target.value); setCurrentPage(1);}} className="px-3 py-2 border rounded-xl text-sm cursor-pointer">
+            <option value="All">All Statuses</option>
+            <option value="Active">Active</option>
+            <option value="Completed">Completed</option>
+          </select>
         </div>
-
-        {/* Data Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[11px] tracking-wider">
+            <thead className="bg-slate-50 text-slate-500 uppercase font-semibold text-xs border-b border-slate-200">
               <tr>
                 {cols.map((col, idx) => (
-                  <th key={idx} className="px-6 py-3.5">{col}</th>
+                  <th key={idx} className="px-6 py-4">{col}</th>
                 ))}
-                <th className="px-6 py-3.5 text-right">Actions</th>
+                <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -1321,6 +1255,14 @@ Confidential Medical Report. Hospital Seal Applied.
                       );
                     })}
                     <td className="px-6 py-4 text-right relative space-x-2">
+                      <button
+                        onClick={() => { setSelectedViewRecord(row); setIsFullScreen(false); }}
+                        title="View Details in Full Screen"
+                        className="inline-flex items-center px-2.5 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors border border-slate-200"
+                      >
+                        <Eye className="w-3.5 h-3.5 mr-1 text-slate-500" />
+                        View
+                      </button>
                       {isLabReport && (
                         <button
                           onClick={() => handleDownloadReport(row)}
@@ -1417,100 +1359,63 @@ Confidential Medical Report. Hospital Seal Applied.
       {selectedInvoiceModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200 my-8">
-            
-            {/* Modal Controls Bar (hidden during print) */}
-            <div className="p-4 bg-slate-900 text-white flex justify-between items-center no-print">
-              <div className="flex items-center space-x-2">
-                <Printer className="w-5 h-5 text-teal-400" />
-                <h3 className="font-bold text-sm">Official Invoice & Receipt Preview</h3>
-              </div>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => window.print()}
-                  className="px-3.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold flex items-center shadow-sm transition-colors"
-                >
-                  <Printer className="w-3.5 h-3.5 mr-1.5" />
-                  Print Official Receipt
-                </button>
-                <button
-                  onClick={() => handleDownloadInvoicePDF(selectedInvoiceModal)}
-                  className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center shadow-sm transition-colors"
-                >
-                  <Download className="w-3.5 h-3.5 mr-1.5" />
-                  Download PDF
-                </button>
-                <button onClick={() => setSelectedInvoiceModal(null)} className="text-slate-400 hover:text-white p-1 ml-2">
-                  <X className="w-5 h-5" />
-                </button>
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 bg-slate-50">
+              <h3 className="font-bold text-slate-800">Print Preview - Official Bill</h3>
+              <button onClick={() => setSelectedInvoiceModal(null)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 max-h-[70vh] overflow-y-auto" id="printable-invoice-content">
+              <div className="invoice-card">
+                <div className="flex justify-between items-center pb-4 border-b border-slate-200">
+                  <div>
+                    <h2 className="text-xl font-bold text-blue-900">City Care General Hospital</h2>
+                    <p className="text-xs text-slate-500">123 Healthcare Boulevard, Medical District • Phone: +91 98765 43210</p>
+                  </div>
+                  <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-bold rounded-full">Official Receipt</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 py-4 border-b border-slate-200 text-sm">
+                  <div>
+                    <p className="text-xs text-slate-400 uppercase font-semibold">Bill / Invoice ID</p>
+                    <p className="font-bold text-slate-800">{selectedInvoiceModal['Bill ID'] || selectedInvoiceModal['Invoice ID'] || `INV-2026-${selectedInvoiceModal.id}`}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 uppercase font-semibold">Patient Name</p>
+                    <p className="font-bold text-slate-800">{selectedInvoiceModal['Patient'] || selectedInvoiceModal['Patient Name'] || 'Aarav Kumar'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 uppercase font-semibold">Date & Time</p>
+                    <p className="font-bold text-slate-800">{selectedInvoiceModal['Date & Time'] || selectedInvoiceModal['Date'] || '2026-08-13 10:30 AM'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 uppercase font-semibold">Status</p>
+                    <p className="font-bold text-emerald-600">{selectedInvoiceModal['Payment Status'] || selectedInvoiceModal['Status'] || 'Paid'}</p>
+                  </div>
+                </div>
+
+                <div className="bg-blue-50 p-4 rounded-xl flex justify-between items-center mt-4 text-blue-900 font-bold">
+                  <span>Total Amount Paid:</span>
+                  <span className="text-xl">{selectedInvoiceModal['Total Amount'] || selectedInvoiceModal['Amount'] || '$109.50'}</span>
+                </div>
               </div>
             </div>
 
-            {/* Printable Receipt Layout */}
-            <div id="printable-invoice-receipt" className="p-8 sm:p-10 bg-white text-slate-800">
-              {/* Header Branding */}
-              <div className="flex justify-between items-start border-b-2 border-slate-900 pb-6 mb-6">
-                <div>
-                  <h1 className="text-2xl font-black tracking-wider text-slate-900">CITY CARE GENERAL HOSPITAL</h1>
-                  <p className="text-xs text-slate-500 mt-1">Multi-Specialty Healthcare & Medical Research Center</p>
-                  <p className="text-xs text-slate-500">100 Healthcare Blvd, Sector 4 • Phone: +91 98765 00000</p>
-                </div>
-                <div className="text-right">
-                  <span className="inline-block bg-teal-50 border border-teal-200 text-teal-800 text-xs font-black uppercase px-3 py-1 rounded-full mb-2">
-                    Official Tax Invoice
-                  </span>
-                  <p className="text-sm font-bold text-slate-900">{selectedInvoiceModal['Invoice ID'] || selectedInvoiceModal['Bill ID'] || selectedInvoiceModal['Transaction ID'] || `INV-2026-${selectedInvoiceModal.id || '01'}`}</p>
-                  <p className="text-xs text-slate-500">Date: {selectedInvoiceModal.Date || selectedInvoiceModal['Due Date'] || '2026-08-13'}</p>
-                </div>
-              </div>
-
-              {/* Patient & Invoice Grid */}
-              <div className="grid grid-cols-2 gap-6 bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-6 text-xs">
-                <div>
-                  <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Billed To Patient</p>
-                  <p className="text-sm font-bold text-slate-900 mt-0.5">{selectedInvoiceModal.Patient || selectedInvoiceModal['Patient Name'] || 'Aarav Kumar'}</p>
-                  <p className="text-slate-600 mt-0.5">Attending Doctor: {selectedInvoiceModal.Doctor || 'Dr. Priya Nair'}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Payment Summary</p>
-                  <p className="text-sm font-bold text-emerald-600 mt-0.5">Status: {selectedInvoiceModal.Status || selectedInvoiceModal['Payment Status'] || 'Paid'}</p>
-                  <p className="text-slate-600 mt-0.5">Method: {selectedInvoiceModal.Method || 'Online Payment Desk'}</p>
-                </div>
-              </div>
-
-              {/* Items Table */}
-              <table className="w-full text-xs text-left mb-6">
-                <thead>
-                  <tr className="border-b-2 border-slate-200 text-slate-500 uppercase tracking-wider font-bold">
-                    <th className="py-2.5">Description</th>
-                    <th className="py-2.5 text-center">Qty / Days</th>
-                    <th className="py-2.5 text-right">Amount</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                  <tr>
-                    <td className="py-3 font-semibold text-slate-900">Hospital Consultation & Clinical Care Services</td>
-                    <td className="py-3 text-center">1</td>
-                    <td className="py-3 text-right">{selectedInvoiceModal.Amount || selectedInvoiceModal['Total Amount'] || '$109.50'}</td>
-                  </tr>
-                  <tr>
-                    <td className="py-3">Diagnostic Laboratory Profile & Pharmacy Dispense</td>
-                    <td className="py-3 text-center">1</td>
-                    <td className="py-3 text-right">Included</td>
-                  </tr>
-                </tbody>
-              </table>
-
-              {/* Total Summary */}
-              <div className="border-t-2 border-slate-900 pt-4 flex justify-between items-end">
-                <div className="text-xs text-slate-500">
-                  <p className="font-bold text-slate-700">Computer Generated Official Invoice</p>
-                  <p>Thank you for choosing City Care General Hospital.</p>
-                </div>
-                <div className="text-right">
-                  <span className="text-xs text-slate-500 uppercase font-bold mr-3">Grand Total</span>
-                  <span className="text-2xl font-black text-slate-900">{selectedInvoiceModal['Total Amount'] || selectedInvoiceModal.Amount || '$109.50'}</span>
-                </div>
-              </div>
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end space-x-3">
+              <button
+                onClick={() => setSelectedInvoiceModal(null)}
+                className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-100"
+              >
+                Close
+              </button>
+              <button
+                onClick={handleExecutePrintWindow}
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold flex items-center shadow-md shadow-blue-200"
+              >
+                <Printer className="w-4 h-4 mr-2" />
+                Print Official A4 Bill
+              </button>
             </div>
           </div>
         </div>
