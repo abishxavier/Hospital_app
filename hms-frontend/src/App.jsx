@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Plus, Search, Filter, Trash2, Download, Printer, RefreshCw, ChevronLeft, ChevronRight, X, FileText, AlertCircle, Calendar, Clock, CheckCircle2 } from 'lucide-react';
+import { Plus, Search, Filter, Trash2, Download, Printer, RefreshCw, ChevronLeft, ChevronRight, X, FileText, AlertCircle, Calendar, Clock, CheckCircle2, Eye, Minimize2, Maximize2 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import Layout from './components/Layout/Layout';
@@ -622,9 +622,21 @@ const GenericPage = ({ title, description, cols, defaultData = [], apiEndpoint, 
   const [filterStatus, setFilterStatus] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedViewRecord, setSelectedViewRecord] = useState(null);
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const [selectedInvoiceModal, setSelectedInvoiceModal] = useState(null);
   const [formData, setFormData] = useState({});
   const [dateError, setDateError] = useState('');
+
+  // Get doctor name filter from stored session
+  const doctorNameFilter = useMemo(() => {
+    try {
+      const saved = localStorage.getItem('hms_user');
+      if (!saved) return null;
+      const obj = JSON.parse(saved);
+      return obj?.role === 'doctor' ? (obj?.full_name || obj?.name || null) : null;
+    } catch (e) { return null; }
+  }, []);
 
   const pageSize = 5;
 
@@ -632,7 +644,8 @@ const GenericPage = ({ title, description, cols, defaultData = [], apiEndpoint, 
   useEffect(() => {
     if (apiEndpoint) {
       setLoading(true);
-      const userObj = JSON.parse(localStorage.getItem('hms_user') || '{}');
+      let userObj = {};
+      try { userObj = JSON.parse(localStorage.getItem('hms_user') || '{}'); } catch (e) {}
       let url = apiEndpoint;
       const isDoctorUser = userObj?.role === 'doctor';
       const doctorName = userObj?.full_name || userObj?.name;
